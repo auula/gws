@@ -5,25 +5,37 @@
 
 package session
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 // Version  for Session package
 const Version = "0.0.1"
 
 // Session Operation interface, Sesion operation of different storage methods is different,
-//and the implementation is also different.
+// and the implementation is also different.
 type Session interface {
-    Set(key, value interface{})
-    Get(key interface{}) interface{}
-    Remove(key interface{}) error
-    GetId() string
+	Set(key, value interface{})
+	Get(key interface{}) interface{}
+	Remove(key interface{}) error
+	GetId() string
 }
 
-// SessionFromMemory implement
-type SessionFromMemory struct {
-    sid              string                      //唯一标示
-    lock             sync.Mutex                  //一把互斥锁
-    lastAccessedTime time.Time                   //最后访问时间
-    maxAge           int64                       //超时时间
-    data             map[interface{}]interface{} //主数据
+// FromMemory struct data store in Redis
+type FromMemory struct {
+	sid              string                      // unique id
+	lock             sync.Mutex                  // mutex lock
+	lastAccessedTime time.Time                   // last visit time
+	maxAge           int64                       // over time
+	data             map[interface{}]interface{} // save data
+}
+
+// FromRedis struct  data store in Redis
+type FromRedis struct {
+	sid              string                      // unique id
+	lock             sync.Mutex                  // mutex lock
+	lastAccessedTime time.Time                   // last visit time
+	maxAge           int64                       // over time
+	data             map[interface{}]interface{} // save data
 }
