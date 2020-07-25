@@ -60,7 +60,7 @@ func (si *Memory) GetId() string {
 	return si.SID
 }
 
-//初始换会话session，这个结构体操作实现Session接口
+//初始化会话session，这个结构体操作实现Session接口
 func (fm *MemoryStore) InitSession(sid string, maxAge int64) (Session, error) {
 	fm.lock.Lock()
 	defer fm.lock.Unlock()

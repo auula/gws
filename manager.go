@@ -30,7 +30,7 @@ type Manager struct {
 //实例化一个session管理器
 func New(storeType StoreType, cookieName string, maxAge int64) *Manager {
 
-	var _store Storage
+	var _store *MemoryStore
 	switch storeType {
 	case MemoryType:
 		_store = newMemoryStore()
@@ -62,7 +62,6 @@ func (m *Manager) BeginSession(w http.ResponseWriter, r *http.Request) Session {
 	//防止处理时，进入另外的请求
 	m.Safe.Lock()
 	defer m.Safe.Unlock()
-
 	cookie, err := r.Cookie(m.CookieName)
 	if err != nil || cookie.Value == "" { //如果当前请求没有改cookie名字对应的cookie
 		//创建一个
@@ -89,7 +88,6 @@ func (m *Manager) BeginSession(w http.ResponseWriter, r *http.Request) Session {
 		http.SetCookie(w, &cookie) //设置到响应中
 		return session
 	} else { //如果存在
-
 		sid, _ := url.QueryUnescape(cookie.Value)       //反转义特殊符号
 		session := m.Store.(*MemoryStore).sessions[sid] //从保存session介质中获取
 		if session == nil {

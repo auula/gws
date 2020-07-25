@@ -1,9 +1,3 @@
-# go-session
-Session library for go language.
-
-
-# Exmaple Code
-```go
 // Copyright (c) 2020 HigKer
 // Open Source: MIT License
 // Author: SDing <deen.job@qq.com>
@@ -38,7 +32,7 @@ func IndexHandler(writer http.ResponseWriter, r *http.Request) {
 
 func setHandler(writer http.ResponseWriter, r *http.Request) {
 	session := manager.GetSessionById(manager.CookieName)
-	session.Set("Url","https://github.com/higker/go-session/")
+	session.Set("Url", "https://github.com/higker/go-session/")
 	_, _ = writer.Write([]byte("set session data successful!"))
 }
 
@@ -48,4 +42,3 @@ func getHandler(writer http.ResponseWriter, r *http.Request) {
 	_, _ = writer.Write([]byte(Url.(string)))
 	fmt.Println(Url.(string))
 }
-```
