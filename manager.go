@@ -28,7 +28,8 @@ type Manager struct {
 }
 
 //实例化一个session管理器
-func NewManager(storeType StoreType, cookieName string, maxAge int64) *Manager {
+func New(storeType StoreType, cookieName string, maxAge int64) *Manager {
+
 	var _store Storage
 	switch storeType {
 	case MemoryType:
@@ -40,6 +41,7 @@ func NewManager(storeType StoreType, cookieName string, maxAge int64) *Manager {
 	default:
 		panic("not implement store type!")
 	}
+
 	sessionManager := &Manager{
 		CookieName: cookieName,
 		Store:      _store, //默认以内存实现
@@ -154,10 +156,7 @@ func (m *Manager) GetSessionById(sid string) Session {
 //是否内存中存在
 func (m *Manager) MemoryIsExists(sid string) bool {
 	_, ok := m.Store.(*MemoryStore).sessions[sid]
-	if ok {
-		return true
-	}
-	return false
+	return ok
 }
 
 //手动销毁session，同时删除cookie
