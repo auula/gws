@@ -1,7 +1,7 @@
 // Copyright (c) 2020 HigKer
 // Open Source: MIT License
 // Author: SDing <deen.job@qq.com>
-// Date: 2020/7/25 - 6:56 PM
+// Date: 2020/7/30 - 8:06 PM
 
 package main
 
@@ -11,34 +11,37 @@ import (
 	"net/http"
 )
 
-var manager *session.Manager
-
 func init() {
-	manager = session.New(session.MemoryType, "SID", 3000*6000)
+	// 初始化一个Session存储器 目前支持内存存储 未来将支持 Redis 或者 Database
+	err := session.Builder(session.NewMemoryStore())
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func main() {
-	http.HandleFunc("/", IndexHandler)
 	http.HandleFunc("/set", setHandler)
-	http.HandleFunc("/get", setHandler)
-	http.ListenAndServe(":8080", nil)
-}
-
-func IndexHandler(writer http.ResponseWriter, r *http.Request) {
-	// init func
-	manager.BeginSession(writer, r)
-	_, _ = writer.Write([]byte("init session successful!"))
+	http.HandleFunc("/get", getHandler)
+	_ = http.ListenAndServe(":8080", nil)
 }
 
 func setHandler(writer http.ResponseWriter, r *http.Request) {
-	session := manager.GetSessionById(manager.CookieName)
-	session.Set("Url", "https://github.com/higker/go-session/")
-	_, _ = writer.Write([]byte("set session data successful!"))
+	// init func
+	handel, err := session.Handel(writer, r)
+	if err != nil {
+		fmt.Println(err)
+	}
+	// SET data
+	handel.Set("Key", "https://github.com/higker/go-session/")
+	_, _ = writer.Write([]byte("init session successful!"))
 }
 
 func getHandler(writer http.ResponseWriter, r *http.Request) {
-	session := manager.GetSessionById(manager.CookieName)
-	Url := session.Get("Url")
-	_, _ = writer.Write([]byte(Url.(string)))
-	fmt.Println(Url.(string))
+	handel, err := session.Handel(writer, r)
+	if err != nil {
+		fmt.Println(err)
+	}
+	// GET data
+	_, _ = fmt.Fprintln(writer, handel.Get("Key"))
+	fmt.Println(handel.GetID())
 }

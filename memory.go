@@ -17,11 +17,11 @@ type MemoryStore struct {
 	sessions map[string]Session
 }
 
-func newMemoryStore() *MemoryStore {
+func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{sessions: make(map[string]Session, 0)}
 }
 
-type Memory struct {
+type MemoryItem struct {
 	SID              string                      // unique id
 	Safe             sync.Mutex                  // mutex lock
 	LastAccessedTime time.Time                   // last visit time
@@ -30,87 +30,57 @@ type Memory struct {
 }
 
 //实例化
-func newMemory() *Memory {
-	return &Memory{
+func newMemoryItem(id string) *MemoryItem {
+	return &MemoryItem{
 		Data:   make(map[interface{}]interface{}),
 		MaxAge: 60 * 30, //默认30分钟
+		SID:    id,
 	}
 }
 
 //同一个会话均可调用，进行设置，改操作必须拥有排斥锁
-func (si *Memory) Set(key, value interface{}) {
+func (si *MemoryItem) Set(key, value interface{}) {
 	si.Safe.Lock()
 	defer si.Safe.Unlock()
 	si.Data[key] = value
 }
 
-func (si *Memory) Get(key interface{}) interface{} {
+func (si *MemoryItem) Get(key interface{}) interface{} {
 	if value := si.Data[key]; value != nil {
 		return value
 	}
 	return nil
 }
-func (si *Memory) Remove(key interface{}) error {
+
+func (si *MemoryItem) Remove(key interface{}) error {
 	if value := si.Data[key]; value != nil {
 		delete(si.Data, key)
 	}
 	return nil
 }
-func (si *Memory) GetId() string {
+
+func (si *MemoryItem) GetID() string {
 	return si.SID
 }
 
-//初始化会话session，这个结构体操作实现Session接口
-func (fm *MemoryStore) InitSession(sid string, maxAge int64) (Session, error) {
-	fm.lock.Lock()
-	defer fm.lock.Unlock()
-
-	newSession := newMemory()
-	newSession.SID = sid
-	if maxAge != 0 {
-		newSession.MaxAge = maxAge
-	}
-	newSession.LastAccessedTime = time.Now()
-
-	fm.sessions[sid] = newSession //内存管理map
-	return newSession, nil
+// Parse parameter
+func (ms *MemoryStore) Parse() (map[string]string, error) {
+	// Not to do
+	return nil, nil
 }
 
-//设置
-func (fm *MemoryStore) SetSession(session Session) error {
-	fm.sessions[session.GetId()] = session
-	return nil
-}
-
-//销毁session
-func (fm *MemoryStore) DestroySession(sid string) error {
-	if _, ok := fm.sessions[sid]; ok {
-		delete(fm.sessions, sid)
-		return nil
-	}
-	return nil
-}
-
-//监判超时
-func (fm *MemoryStore) GCSession() {
-
-	sessions := fm.sessions
-
+// GCSession 监判超时
+func (ms *MemoryStore) GC() {
+	sessions := ms.sessions
 	//fmt.Println("gc session")
-
 	if len(sessions) < 1 {
 		return
 	}
-
 	//fmt.Println("current active sessions ", sessions)
-
 	for k, v := range sessions {
-		t := (v.(*Memory).LastAccessedTime.Unix()) + (v.(*Memory).MaxAge)
-
+		t := (v.(*MemoryItem).LastAccessedTime.Unix()) + (v.(*MemoryItem).MaxAge)
 		if t < time.Now().Unix() { //超时了
-
-			delete(fm.sessions, k)
+			delete(ms.sessions, k)
 		}
 	}
-
 }
