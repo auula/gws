@@ -40,7 +40,7 @@ func main() {
 
 func setHandler(writer http.ResponseWriter, r *http.Request) {
 	// init func
-	handel, err := session.Handel(writer, r)
+	handel, err := session.Handle(writer, r)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -51,7 +51,7 @@ func setHandler(writer http.ResponseWriter, r *http.Request) {
 
 
 func getHandler(writer http.ResponseWriter, r *http.Request) {
-	handel, err := session.Handel(writer, r)
+	handel, err := session.Handle(writer, r)
 	if err != nil {
 		fmt.Println(err)
 	}

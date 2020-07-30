@@ -39,7 +39,7 @@ func Builder(storeType Store) error {
 	return nil
 }
 
-func Handel(w http.ResponseWriter, r *http.Request) (Session, error) {
+func Handle(w http.ResponseWriter, r *http.Request) (Session, error) {
 	//防止处理时，进入另外的请求
 	cookie, err := r.Cookie(CookieName)
 	if err != nil || len(cookie.Value) <= 0 {
