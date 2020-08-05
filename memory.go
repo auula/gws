@@ -6,7 +6,6 @@
 package session
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
