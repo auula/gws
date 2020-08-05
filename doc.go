@@ -1,8 +1,10 @@
 /*
 
-go—session for Golang session library.
+Go—Session for Golang Session Library.
 Copyright (c) 2020 SDing <deen.job@qq.com>
 Open Source License: MIT License.
+
+ Use Example Code :
 
 	package main
 
@@ -37,41 +39,37 @@ Open Source License: MIT License.
 
 	func main() {
 		http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
-			action, err := session.Action(writer, request)
+			context, err := session.Context(writer, request)
 			if err != nil {
 				log.Fatal(err)
 			}
-			action.Set("user", &user{Name: "YNN", password: "password"})
+			context.Set("user", &user{Name: "YNN", password: "password"})
 		})
-
 		http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
-			action, err := session.Action(writer, request)
+			context, err := session.Context(writer, request)
 			if err != nil {
 				log.Fatal(err)
 			}
-			_, _ = fmt.Fprintln(writer, action.Get("user"))
+			_, _ = fmt.Fprintln(writer, context.Get("user"))
 		})
-
 		http.HandleFunc("/del", func(writer http.ResponseWriter, request *http.Request) {
-			action, err := session.Action(writer, request)
+			context, err := session.Context(writer, request)
 			if err != nil {
 				log.Fatal(err)
 			}
-			action.Remove("user")
+			context.Remove("user")
 		})
-
 		http.HandleFunc("/info", func(writer http.ResponseWriter, request *http.Request) {
-			action, err := session.Action(writer, request)
+			context, err := session.Context(writer, request)
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Println(action.ID())
+			fmt.Println(context.ID())
 			fmt.Println("======EXEC CLEAR START=====")
-			action.Clear()
+			context.Clear()
 			fmt.Println("======EXEC CLEAR END=====")
-			fmt.Println(action.Get("user"))
+			fmt.Println(context.Get("user"))
 		})
-
 		_ = http.ListenAndServe(":6995", nil)
 	}
 
