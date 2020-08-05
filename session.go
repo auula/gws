@@ -8,7 +8,7 @@ package session
 import (
 	"errors"
 	"net/http"
-	"sync"
+	"net/url"
 	"time"
 )
 
@@ -17,13 +17,14 @@ type StoreType int8
 const (
 	MemoryStore StoreType = iota
 	RedisStore
-	maxSize = 16
+	maxSize           = 16
+	DefaultCookieName = "go_session_key"
+	DefaultMaxAge     = 30 * 60 // 30 min
 )
 
 var (
-	_Store            Store
-	DefaultCookieName = "go_session_key"
-	DefaultMaxAge     = 60 * 30 // 30 min
+	_Store Store
+	_Cfg   *Config
 )
 
 // Session standard
@@ -41,76 +42,76 @@ type Config struct {
 	CookieName string // sessionID的cookie键名
 	Domain     string // sessionID的cookie作用域名
 	Path       string // sessionID的cookie作用路径
+	MaxAge     int    // 最大生命周期（秒）
+	HttpOnly   bool   // 仅用于http（无法被js读取）
+	Secure     bool   // 启用https
 	//Key                       string        // sessionID值加密的密钥
-	RedisAddr                 string        // redis地址
-	RedisPassword             string        // redis密码
-	RedisKeyPrefix            string        // redis键名前缀
-	MaxAge                    int           // 最大生命周期（秒）
-	IdleTime                  time.Duration // 空闲生命周期
-	RedisDB                   int           // redis数据库
-	HttpOnly                  bool          // 仅用于http（无法被js读取）
-	Secure                    bool          // 启用https
-	DisableAutoUpdateIdleTime bool          // 禁止自动更新空闲时间
+	//RedisAddr      string // redis地址
+	//RedisPassword  string // redis密码
+	//RedisKeyPrefix string // redis键名前缀
+	// IdleTime                  time.Duration // 空闲生命周期
+	// RedisDB                   int           // redis数据库
+	// DisableAutoUpdateIdleTime bool          // 禁止自动更新空闲时间
 }
 
-// Item a session  item
-type Item struct {
-	SID              string                      // unique id
-	Safe             sync.Mutex                  // mutex lock
-	LastAccessedTime time.Time                   // last visit time
-	MaxAge           int64                       // over time
-	Data             map[interface{}]interface{} // save data
-}
-
-//实例化
-func newSessionItem(id string) *Item {
-	return &Item{
-		Data: make(map[interface{}]interface{}, maxSize),
-		SID:  id,
-	}
-}
-
-//同一个会话均可调用，进行设置，改操作必须拥有排斥锁
-func (si *Item) Set(key, value interface{}) {
-	si.Safe.Lock()
-	defer si.Safe.Unlock()
-	si.Data[key] = value
-}
-
-func (si *Item) Get(key interface{}) interface{} {
-	if value := si.Data[key]; value != nil {
-		return value
-	}
-	return nil
-}
-
-func (si *Item) Remove(key interface{}) {
-	if value := si.Data[key]; value != nil {
-		delete(si.Data, key)
-	}
-}
-
-func (si *Item) ID() string {
-	return si.SID
-}
-func (si *Item) Clear() {
-
-}
-
-func Builder(store StoreType, conf *Config) (Session, error) {
+// Builder build  session store
+func Builder(store StoreType, conf *Config) error {
 	switch store {
 	default:
-		return nil, errors.New("build session error, not implement type store")
+		return errors.New("build session error, not implement type store")
 	case MemoryStore:
-
+		_Cfg = conf
+		_Store = newMemoryStore()
+		go _Store.GC()
+		return nil
 	case RedisStore:
-
+		return errors.New("not implement type store,to github: https://github.com/dxvgef/sessions")
 	}
-	return nil, nil
 }
 
-// Action Session handle func
-func Action(w http.ResponseWriter, r *http.Request) (Session, error) {
+// DefaultCfg default config
+func DefaultCfg() *Config {
+	return &Config{CookieName: DefaultCookieName, Path: "/", MaxAge: DefaultMaxAge, HttpOnly: true, Secure: false}
+}
 
-	return nil, nil
+// Context Session handle func
+// return Session Item
+func Context(w http.ResponseWriter, r *http.Request) (Session, error) {
+	//防止处理时，进入另外的请求
+	cookie, err := r.Cookie(_Cfg.CookieName)
+	if err != nil || len(cookie.Value) <= 0 {
+		item := recordCookie(w, cookie)
+		return item, nil
+	}
+	// 防止浏览器关闭重新打开抛异常
+	sid, err := url.QueryUnescape(cookie.Value)
+	if err != nil {
+		return nil, err
+	}
+	session := _Store.(*MemoryStorage).sessions[sid]
+	if session == nil {
+		item := recordCookie(w, cookie)
+		return item, nil
+	}
+	return _Store.(*MemoryStorage).sessions[cookie.Value], nil
+}
+
+func recordCookie(w http.ResponseWriter, cookie *http.Cookie) Session {
+	// 创建一个cookie
+	sid := string(Random(32, RuleKindAll))
+	cookie = &http.Cookie{
+		Name: _Cfg.CookieName,
+		//这里是并发不安全的，但是这个方法已上锁
+		Value:    url.QueryEscape(sid), //转义特殊符号@#￥%+*-等
+		Path:     _Cfg.Path,
+		Domain:   _Cfg.Domain,
+		HttpOnly: _Cfg.HttpOnly,
+		Secure:   _Cfg.Secure,
+		MaxAge:   _Cfg.MaxAge,
+		Expires:  time.Now().Add(time.Duration(_Cfg.MaxAge)),
+	}
+	http.SetCookie(w, cookie) //设置到响应中
+	item := newSessionItem(sid, _Cfg.MaxAge)
+	_Store.(*MemoryStorage).sessions[sid] = item
+	return item
 }
