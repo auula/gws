@@ -25,7 +25,7 @@ func newMemoryStore() *MemoryStorage {
 func (ms *MemoryStorage) GC() {
 	// 10 分钟进行一次垃圾收集
 	for {
-		time.Sleep(10 * time.Second)
+		time.Sleep(10 * 60 * time.Second)
 		sessions := ms.sessions
 		if len(sessions) < 1 {
 			continue
