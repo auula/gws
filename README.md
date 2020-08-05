@@ -77,6 +77,7 @@
 			}
 			fmt.Println(context.ID())
 			fmt.Println("======EXEC CLEAR START=====")
+			// remove all store session data
 			context.Clear()
 			fmt.Println("======EXEC CLEAR END=====")
 			fmt.Println(context.Get("user"))
