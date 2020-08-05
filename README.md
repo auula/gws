@@ -1,4 +1,4 @@
-# Go-Session
+# go-session
  ![Go](https://github.com/airplayx/gormat/workflows/Go/badge.svg)
  [![Go Report Card](https://goreportcard.com/badge/github.com/airplayx/gormat)](https://goreportcard.com/report/github.com/higker/go-session)
  [![shields](https://img.shields.io/github/v/release/higker/go-session.svg)](https://github.com/higker/go-session/releases)
