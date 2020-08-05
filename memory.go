@@ -19,7 +19,7 @@ type MemoryStorage struct {
 }
 
 func newMemoryStore() *MemoryStorage {
-	return &MemoryStorage{sessions: make(map[string]Session, 128*maxSize), cfg: config}
+	return &MemoryStorage{sessions: make(map[string]Session, 128*maxSize)}
 }
 
 func (ms *MemoryStorage) GC() {
