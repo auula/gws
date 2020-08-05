@@ -1,5 +1,9 @@
 # Go-Session
-
+ ![Go](https://github.com/airplayx/gormat/workflows/Go/badge.svg)
+ [![Go Report Card](https://goreportcard.com/badge/github.com/airplayx/gormat)](https://goreportcard.com/report/github.com/higker/go-session)
+ [![codecov](https://codecov.io/gh/airplayx/gormat/branch/master/graph/badge.svg)](https://codecov.io/gh/higker/go-session)
+ [![shields](https://img.shields.io/github/v/release/airplayx/gormat.svg)](https://github.com/higker/go-session/releases)
+ 
 **Session library for Golang🔥.**
 > 由于go官方没有提供session的标准库，所以笔者自己写了一个并且开源出来希望你帮助屏幕前需要的你，给个star吧~
 ## Features
