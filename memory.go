@@ -31,8 +31,8 @@ func (ms *MemoryStorage) GC() {
 			continue
 		}
 		for k, v := range sessions {
-			fmt.Println(time.Now())
-			fmt.Println(v.(*Item).expires)
+			// fmt.Println(time.Now())
+			// fmt.Println(v.(*Item).expires)
 			if time.Now().Unix() >= v.(*Item).expires.Unix() { //超时了
 				fmt.Println("ID:", k, "被GC清理了")
 				delete(ms.sessions, k)
