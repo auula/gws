@@ -8,8 +8,8 @@
 ## Features
 
 - [x] Session CRUD
-- [x] custom config
-- [x] simple use
+- [x] Custom Config
+- [x] Simple Use
 
 ## Use Example
 
