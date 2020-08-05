@@ -1,20 +1,12 @@
 // Copyright (c) 2020 HigKer
 // Open Source: MIT License
 // Author: SDing <deen.job@qq.com>
-// Date: 2020/7/25 - 12:35 PM
+// Date: 2020/8/4 - 10:44 PM
 
 package session
 
-// Store  interface
+// Store standard
 type Store interface {
-	// MemoryType
-	// RedisType
-	// DatabaseType
-	Parse() (map[string]string, error)
+	// Garbage Collection
+	GC()
 }
-
-// const (
-// 	MemoryType StoreType = iota
-// 	RedisType
-// 	DatabaseType
-// )

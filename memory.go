@@ -1,86 +1,86 @@
 // Copyright (c) 2020 HigKer
 // Open Source: MIT License
 // Author: SDing <deen.job@qq.com>
-// Date: 2020/7/25 - 12:36 PM
+// Date: 2020/8/4 - 10:43 PM
 
 package session
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
 
-type MemoryStore struct {
+type MemoryStorage struct {
 	//由于session包含所有的请求
 	//并行时，保证数据独立、一致、安全
 	lock     sync.Mutex //互斥锁
 	sessions map[string]Session
 }
 
-func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{sessions: make(map[string]Session, 0)}
+func newMemoryStore() *MemoryStorage {
+	return &MemoryStorage{sessions: make(map[string]Session, 128*maxSize), cfg: config}
 }
 
-type MemoryItem struct {
-	SID              string                      // unique id
-	Safe             sync.Mutex                  // mutex lock
-	LastAccessedTime time.Time                   // last visit time
-	MaxAge           int64                       // over time
-	Data             map[interface{}]interface{} // save data
+func (ms *MemoryStorage) GC() {
+	// 10 分钟进行一次垃圾收集
+	for {
+		time.Sleep(10 * time.Second)
+		sessions := ms.sessions
+		if len(sessions) < 1 {
+			continue
+		}
+		for k, v := range sessions {
+			fmt.Println(time.Now())
+			fmt.Println(v.(*Item).expires)
+			if time.Now().Unix() >= v.(*Item).expires.Unix() { //超时了
+				fmt.Println("ID:", k, "被GC清理了")
+				delete(ms.sessions, k)
+			}
+		}
+	}
+}
+
+// Item a session  item
+type Item struct {
+	sID     string                      // unique id
+	safe    sync.Mutex                  // mutex lock
+	expires time.Time                   // Expires time
+	data    map[interface{}]interface{} // save data
 }
 
 //实例化
-func newMemoryItem(id string) *MemoryItem {
-	return &MemoryItem{
-		Data:   make(map[interface{}]interface{}),
-		MaxAge: 60 * 30, //默认30分钟
-		SID:    id,
+func newSessionItem(id string, maxAge int) *Item {
+	return &Item{
+		data:    make(map[interface{}]interface{}, maxSize),
+		sID:     id,
+		expires: time.Now().Add(time.Duration(maxAge) * time.Second),
 	}
 }
 
 //同一个会话均可调用，进行设置，改操作必须拥有排斥锁
-func (si *MemoryItem) Set(key, value interface{}) {
-	si.Safe.Lock()
-	defer si.Safe.Unlock()
-	si.Data[key] = value
+func (si *Item) Set(key, value interface{}) {
+	si.safe.Lock()
+	defer si.safe.Unlock()
+	si.data[key] = value
 }
 
-func (si *MemoryItem) Get(key interface{}) interface{} {
-	if value := si.Data[key]; value != nil {
+func (si *Item) Get(key interface{}) interface{} {
+	if value := si.data[key]; value != nil {
 		return value
 	}
 	return nil
 }
 
-func (si *MemoryItem) Remove(key interface{}) error {
-	if value := si.Data[key]; value != nil {
-		delete(si.Data, key)
+func (si *Item) Remove(key interface{}) {
+	if value := si.data[key]; value != nil {
+		delete(si.data, key)
 	}
-	return nil
 }
 
-func (si *MemoryItem) GetID() string {
-	return si.SID
+func (si *Item) ID() string {
+	return si.sID
 }
-
-// Parse parameter
-func (ms *MemoryStore) Parse() (map[string]string, error) {
-	// Not to do
-	return nil, nil
-}
-
-// GCSession 监判超时
-func (ms *MemoryStore) GC() {
-	sessions := ms.sessions
-	//fmt.Println("gc session")
-	if len(sessions) < 1 {
-		return
-	}
-	//fmt.Println("current active sessions ", sessions)
-	for k, v := range sessions {
-		t := (v.(*MemoryItem).LastAccessedTime.Unix()) + (v.(*MemoryItem).MaxAge)
-		if t < time.Now().Unix() { //超时了
-			delete(ms.sessions, k)
-		}
-	}
+func (si *Item) Clear() {
+	si.data = make(map[interface{}]interface{}, maxSize)
 }
