@@ -34,7 +34,7 @@ func (ms *MemoryStorage) GC() {
 			// fmt.Println(time.Now())
 			// fmt.Println(v.(*Item).expires)
 			if time.Now().Unix() >= v.(*Item).expires.Unix() { //超时了
-				fmt.Println("ID:", k, "被GC清理了")
+				// fmt.Println("ID:", k, "被GC清理了")
 				delete(ms.sessions, k)
 			}
 		}
