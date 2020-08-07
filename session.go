@@ -56,6 +56,9 @@ type Config struct {
 
 // Builder build  session store
 func Builder(store StoreType, conf *Config) error {
+	if conf.MaxAge < DefaultMaxAge {
+		return errors.New("session maxAge no less than 30min")
+	}
 	switch store {
 	default:
 		return errors.New("build session error, not implement type store")
