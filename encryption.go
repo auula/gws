@@ -3,4 +3,4 @@
 // Author: SDing <deen.job@qq.com>
 // Date: 2020/8/23 - 9:11 下午 - UTC/GMT+08:00
 
-package go_session
+package session
