@@ -8,6 +8,7 @@ package session
 import (
 	"bytes"
 	"encoding/gob"
+	"fmt"
 )
 
 // Serialize object to serialize byte
@@ -21,8 +22,15 @@ func Serialize(obj interface{}) ([]byte, error) {
 	return result.Bytes(), nil
 }
 
-// UnSerialize byte to object
-func UnSerialize(byte []byte, obj interface{}) {
-	decoder := gob.NewDecoder(bytes.NewReader(byte))
-	decoder.Decode(&obj)
+// DeSerialize byte to object
+func DeSerialize(byte []byte, obj interface{}) error {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+	err := encoder.Encode(byte)
+	if err != nil {
+		return err
+	}
+	decoder := gob.NewDecoder(bytes.NewReader(buf.Bytes()))
+	fmt.Println(decoder.Decode(&obj))
+	return decoder.Decode(&obj)
 }

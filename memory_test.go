@@ -14,7 +14,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	_Cfg = &Config{_st: Memory, MaxAge: ExpireTime}
+	_Cfg = &Config{MaxAge: ExpireTime}
 	m.Run()
 }
 

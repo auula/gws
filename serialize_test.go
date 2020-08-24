@@ -46,3 +46,19 @@ func TestSerialize(t *testing.T) {
 		})
 	}
 }
+func TestUnSerialize(t *testing.T) {
+	temp := "test serialize"
+	serialize, _ := Serialize(temp)
+	t.Log(serialize)
+	var temp2 string
+	err := DeSerialize(serialize, temp2)
+	if err != nil {
+		t.Log(err)
+	}
+	t.Log(temp2)
+}
+
+func Test_randomID(t *testing.T) {
+	t.Log(string(randomID(16)))
+	t.Log(string(Random(64, RuleKindAll)))
+}
