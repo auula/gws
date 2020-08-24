@@ -51,7 +51,7 @@ func (r *RedisStore) Remove(id, key string) {
 	r.client.HDel(tmpKey, key)
 }
 
-func (r *RedisStore) clean(id string) {
+func (r *RedisStore) Clean(id string) {
 	tmpKey := _Cfg.RedisKeyPrefix + id
 	r.client.Del(tmpKey)
 }

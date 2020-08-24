@@ -12,7 +12,7 @@ type Storage interface {
 	Writer(id, key string, data interface{}) error
 	Reader(id, key string) ([]byte, error)
 	Remove(id, key string)
-	clean(id string)
+	Clean(id string)
 }
 
 // Value is unite session data value

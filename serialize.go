@@ -6,31 +6,15 @@
 package session
 
 import (
-	"bytes"
-	"encoding/gob"
-	"fmt"
+	"encoding/json"
 )
 
 // Serialize object to serialize byte
 func Serialize(obj interface{}) ([]byte, error) {
-	var result bytes.Buffer
-	encoder := gob.NewEncoder(&result)
-	err := encoder.Encode(obj)
-	if err != nil {
-		return nil, err
-	}
-	return result.Bytes(), nil
+	return json.Marshal(obj)
 }
 
 // DeSerialize byte to object
 func DeSerialize(byte []byte, obj interface{}) error {
-	var buf bytes.Buffer
-	encoder := gob.NewEncoder(&buf)
-	err := encoder.Encode(byte)
-	if err != nil {
-		return err
-	}
-	decoder := gob.NewDecoder(bytes.NewReader(buf.Bytes()))
-	fmt.Println(decoder.Decode(&obj))
-	return decoder.Decode(&obj)
+	return json.Unmarshal(byte, obj)
 }

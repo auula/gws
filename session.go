@@ -79,6 +79,20 @@ func (s *Session) Set(key string, data interface{}) error {
 	return _Store.Writer(s.parseID(), key, data)
 }
 
+// Del delete session data by key
+func (s *Session) Del(key string) error {
+	if key == "" || len(key) <= 0 {
+		return ErrorKeyFormat
+	}
+	_Store.Remove(s.parseID(), key)
+	return nil
+}
+
+// Clean clean session data
+func (s *Session) Clean() {
+	_Store.Clean(s.parseID())
+}
+
 func (s *Session) parseID() (tmpId string) {
 	switch _Cfg._st {
 	case Memory:

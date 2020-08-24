@@ -47,12 +47,10 @@ func (m *MemoryStore) Reader(id, key string) ([]byte, error) {
 }
 
 func (m *MemoryStore) Remove(id, key string) {
-	m.mx.Lock()
-	defer m.mx.Unlock()
 	delete(m.values[id], key)
 }
 
-func (m *MemoryStore) clean(id string) {
+func (m *MemoryStore) Clean(id string) {
 	m.values[id] = make(map[string][]byte, maxSize)
 }
 

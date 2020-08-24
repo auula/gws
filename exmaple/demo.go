@@ -20,8 +20,8 @@ func init() {
 }
 
 type User struct {
-	name string
-	age  int8
+	Name string
+	Age  int8
 }
 
 func main() {
@@ -38,10 +38,11 @@ func set(writer http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		log.Println(err)
 	}
-	user := User{name: "Ding", age: 21}
+	// set data for session
+	user := User{Name: "Ding", Age: 21}
 	capture.Set("K1", user)
 	log.Println("SET User info  OK", user)
-	writer.Write([]byte("OK"))
+	fmt.Fprintln(writer, "set value ok")
 }
 
 func get(writer http.ResponseWriter, request *http.Request) {
@@ -52,17 +53,31 @@ func get(writer http.ResponseWriter, request *http.Request) {
 	bytes, err := capture.Get("K1")
 	var u User
 	//Deserialize data into objects
-	session.DeSerialize(bytes, u)
+	session.DeSerialize(bytes, &u)
 	log.Println("GET K1 = ", u)
-	fmt.Fprintln(writer, u.name, u.age)
+	fmt.Fprintln(writer, u)
 }
 
 func clean(writer http.ResponseWriter, request *http.Request) {
-
+	capture, err := session.Capture(writer, request)
+	if err != nil {
+		log.Println(err)
+	}
+	// clean session data
+	capture.Clean()
+	fmt.Fprintln(writer, "clean data ok")
 }
 
 func del(writer http.ResponseWriter, request *http.Request) {
-
+	capture, err := session.Capture(writer, request)
+	if err != nil {
+		log.Println(err)
+	}
+	err = capture.Del("V1")
+	if err != nil {
+		fmt.Fprintln(writer, err)
+	}
+	fmt.Fprintln(writer, "delete v1 successful")
 }
 
 func index(writer http.ResponseWriter, request *http.Request) {

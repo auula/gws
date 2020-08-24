@@ -47,15 +47,16 @@ func TestSerialize(t *testing.T) {
 	}
 }
 func TestUnSerialize(t *testing.T) {
-	temp := "test serialize"
-	serialize, _ := Serialize(temp)
-	t.Log(serialize)
-	var temp2 string
-	err := DeSerialize(serialize, temp2)
-	if err != nil {
-		t.Log(err)
+	type User struct {
+		Name string
+		Age  int8
 	}
-	t.Log(temp2)
+	user := User{Name: "Ding", Age: 21}
+	serialize, _ := Serialize(user)
+	t.Log(serialize)
+	var u User
+	DeSerialize(serialize, &u)
+	t.Log(u)
 }
 
 func Test_randomID(t *testing.T) {
