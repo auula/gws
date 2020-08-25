@@ -5,7 +5,7 @@
 
 package session
 
-import "github.com/go-redis/redis"
+import "time"
 
 // Storage is session store standard
 type Storage interface {
@@ -15,10 +15,12 @@ type Storage interface {
 	Clean(id string)
 }
 
+// 后续版本会更新安全 1.解决了session会话超时时间伪造问题
+// 这个是浏览器cookie同意保存的value值
+// 把这个value加密然后响应给浏览器
+// 服务器用秘钥解码就知道到期时间和数据了，这样客户端别人就伪造不了请求了
 // Value is unite session data value
 type Value struct {
-	Key   string
-	Value string
-	Error error
-	*redis.StringCmd
+	ID     string    `json:"id"`
+	Expire time.Time `json:"expire"`
 }

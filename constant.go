@@ -43,13 +43,13 @@ var (
 // Config param
 type Config struct {
 	// cookie参数
-	CookieName     string // sessionID的cookie键名
-	Domain         string // sessionID的cookie作用域名
-	Path           string // sessionID的cookie作用路径
-	MaxAge         int64  // 最大生命周期（秒）
-	HttpOnly       bool   // 仅用于http（无法被js读取）
-	Secure         bool   // 启用https
-	EncryptedKey   string // sessionID值加密的密钥
+	CookieName string // sessionID的cookie键名
+	Domain     string // sessionID的cookie作用域名
+	Path       string // sessionID的cookie作用路径
+	MaxAge     int64  // 最大生命周期（秒）
+	HttpOnly   bool   // 仅用于http（无法被js读取）
+	Secure     bool   // 启用https
+	//EncryptedKey   string // sessionID值加密的密钥
 	RedisAddr      string // redis地址
 	RedisPassword  string // redis密码
 	RedisKeyPrefix string // redis键名前缀
@@ -61,7 +61,7 @@ type Config struct {
 
 // DefaultCfg default config
 func DefaultCfg() *Config {
-	return &Config{CookieName: DefaultCookieName, Path: "/", MaxAge: 60, HttpOnly: true, Secure: false, EncryptedKey: randomString()}
+	return &Config{CookieName: DefaultCookieName, Path: "/", MaxAge: DefaultMaxAge, HttpOnly: true, Secure: false}
 }
 
 // ReloadCfg reload config

@@ -8,6 +8,7 @@ package session
 import (
 	"github.com/go-redis/redis"
 	"sync"
+	"time"
 )
 
 type RedisStore struct {
@@ -41,7 +42,10 @@ func (r *RedisStore) Writer(id, key string, data interface{}) error {
 	if err != nil {
 		return ErrorSetValue
 	}
-	//r.client.Expire(tmpKey, time.Duration(_Cfg.MaxAge))
+	err = r.client.Expire(tmpKey, time.Duration(_Cfg.MaxAge)*time.Second).Err()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

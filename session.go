@@ -21,15 +21,16 @@ type Session struct {
 
 // Builder build  session store
 func Builder(store StoreType, conf *Config) error {
-	//if conf.MaxAge < DefaultMaxAge {
-	//	return errors.New("session maxAge no less than 30min")
-	//}
+	if conf.MaxAge < DefaultMaxAge {
+		return errors.New("session maxAge no less than 30min")
+	}
 	_Cfg = conf
 	switch store {
 	default:
 		return errors.New("build session error, not implement type store")
 	case Memory:
 		_Store = newMemoryStore()
+		_Cfg._st = Memory
 		return nil
 	case Redis:
 		redisStore, err := newRedisStore()
@@ -37,6 +38,7 @@ func Builder(store StoreType, conf *Config) error {
 			return err
 		}
 		_Store = redisStore
+		_Cfg._st = Redis
 		return nil
 	}
 }
@@ -78,7 +80,7 @@ func (s *Session) Get(key string) ([]byte, error) {
 	//var result Value
 	//result.Key = key
 
-	b, err := _Store.Reader(s.ID, key)
+	b, err := _Store.Reader(s.parseID(), key)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +94,7 @@ func (s *Session) Set(key string, data interface{}) error {
 		return ErrorKeyFormat
 	}
 
-	return _Store.Writer(s.ID, key, data)
+	return _Store.Writer(s.parseID(), key, data)
 }
 
 // Del delete session data by key
@@ -101,14 +103,24 @@ func (s *Session) Del(key string) error {
 		return ErrorKeyFormat
 	}
 
-	_Store.Remove(s.ID, key)
+	_Store.Remove(s.parseID(), key)
 	return nil
 }
 
 // Clean clean session data
-func (s *Session) Clean() {
-
-	_Store.Clean(s.ID)
+func (s *Session) Clean(w http.ResponseWriter) {
+	_Store.Clean(s.parseID())
+	cookie := &http.Cookie{
+		Name:     _Cfg.CookieName,
+		Value:    "",
+		Path:     _Cfg.Path,
+		Domain:   _Cfg.Domain,
+		Secure:   _Cfg.Secure,
+		MaxAge:   int(_Cfg.MaxAge),
+		Expires:  time.Now().Add(time.Duration(_Cfg.MaxAge)),
+		HttpOnly: _Cfg.HttpOnly,
+	}
+	http.SetCookie(w, cookie)
 }
 
 func newCookie(w http.ResponseWriter) *http.Cookie {
@@ -127,4 +139,13 @@ func newCookie(w http.ResponseWriter) *http.Cookie {
 	}
 	http.SetCookie(w, cookie) //设置到响应中
 	return cookie
+}
+
+// 解决ID格式
+// 如果内存存储ID后面会有超时时间戳
+func (s *Session) parseID() string {
+	if _Cfg._st == Memory {
+		return s.ID + ":" + ParseString(s.Cookie.Expires.UnixNano())
+	}
+	return s.ID
 }
