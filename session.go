@@ -7,7 +7,6 @@ package session
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -49,10 +48,8 @@ func Ctx(writer http.ResponseWriter, request *http.Request) (*Session, error) {
 	cookie, err := request.Cookie(_Cfg.CookieName)
 	// 如果没有session数据就重新创建一个
 	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
-		// session回话到期时间
-		ex := time.Now().Add(time.Duration(_Cfg.MaxAge))
 		// 重新生成一个cookie 和唯一 sessionID
-		nc := newCookie(writer, ex)
+		nc := newCookie(writer)
 		sid, err := url.QueryUnescape(nc.Value)
 		if err != nil {
 			return nil, err
@@ -60,8 +57,6 @@ func Ctx(writer http.ResponseWriter, request *http.Request) (*Session, error) {
 		session = &Session{
 			Cookie: nc,
 			ID:     sid,
-			// 重新计算session到期时间
-			Expire: ex,
 		}
 		return session, nil
 	}
@@ -116,7 +111,7 @@ func (s *Session) Clean() {
 	_Store.Clean(s.ID)
 }
 
-func newCookie(w http.ResponseWriter, expire time.Time) *http.Cookie {
+func newCookie(w http.ResponseWriter) *http.Cookie {
 	// 创建一个cookie
 	s := Random(32, RuleKindAll)
 	cookie := &http.Cookie{
@@ -128,9 +123,8 @@ func newCookie(w http.ResponseWriter, expire time.Time) *http.Cookie {
 		HttpOnly: _Cfg.HttpOnly,
 		Secure:   _Cfg.Secure,
 		MaxAge:   int(_Cfg.MaxAge),
-		Expires:  expire,
+		Expires:  time.Now().Add(time.Duration(_Cfg.MaxAge)),
 	}
 	http.SetCookie(w, cookie) //设置到响应中
-	fmt.Println(cookie)
 	return cookie
 }
