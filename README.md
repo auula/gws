@@ -25,7 +25,7 @@
 2. Example Code
 
 ```go
-        package main
+package main
 
 import (
 	"fmt"
