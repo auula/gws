@@ -13,15 +13,26 @@ import (
 )
 
 func init() {
-	err := session.Builder(session.Memory, session.DefaultCfg())
+	cfg := session.Config{
+		CookieName:     session.DefaultCookieName,
+		Path:           "/",
+		MaxAge:         60,
+		HttpOnly:       true,
+		Secure:         false,
+		RedisAddr:      "128.199.155.162:6379",
+		RedisPassword:  "deen.job",
+		RedisDB:        0,
+		RedisKeyPrefix: session.RedisPrefix,
+	}
+	err := session.Builder(session.Redis, &cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
 type User struct {
-	Name string
-	Age  int8
+	Name string `json:"name"`
+	Age  int8   `json:"age"`
 }
 
 func main() {
@@ -41,7 +52,6 @@ func set(writer http.ResponseWriter, request *http.Request) {
 	// set data for session
 	user := User{Name: "Ding", Age: 21}
 	capture.Set("K1", user)
-	log.Println("SET User info  OK", user)
 	fmt.Fprintln(writer, "set value ok")
 }
 
@@ -51,7 +61,11 @@ func get(writer http.ResponseWriter, request *http.Request) {
 		log.Println(err)
 	}
 	bytes, err := capture.Get("K1")
-	var u User
+	if err != nil {
+		log.Println("ERR", err)
+	}
+	u := new(User)
+	fmt.Println(bytes)
 	//Deserialize data into objects
 	session.DeSerialize(bytes, &u)
 	log.Println("GET K1 = ", u)
@@ -73,7 +87,7 @@ func del(writer http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		log.Println(err)
 	}
-	err = capture.Del("V1")
+	err = capture.Del("K1")
 	if err != nil {
 		fmt.Fprintln(writer, err)
 	}

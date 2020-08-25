@@ -37,6 +37,7 @@ var (
 	_Store           Storage
 	ErrorKeyFormat   = errors.New("set session data failed,key format error")
 	ErrorKeyNotExist = errors.New("get session data failed,key not exist")
+	ErrorSetValue    = errors.New("set session data failed,redis save failed")
 )
 
 // Config param
@@ -60,7 +61,7 @@ type Config struct {
 
 // DefaultCfg default config
 func DefaultCfg() *Config {
-	return &Config{CookieName: DefaultCookieName, Path: "/", MaxAge: DefaultMaxAge, HttpOnly: true, Secure: false}
+	return &Config{CookieName: DefaultCookieName, Path: "/", MaxAge: 60, HttpOnly: true, Secure: false}
 }
 
 // ReloadCfg reload config
