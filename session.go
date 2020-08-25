@@ -17,6 +17,7 @@ import (
 type Session struct {
 	ID     string
 	Cookie *http.Cookie
+	Expire time.Time
 }
 
 // Builder build  session store
@@ -44,22 +45,23 @@ func Builder(store StoreType, conf *Config) error {
 // Ctx return request session object
 func Ctx(writer http.ResponseWriter, request *http.Request) (*Session, error) {
 	var session *Session
+	// 检测是否有这个session数据
 	cookie, err := request.Cookie(_Cfg.CookieName)
+	// 如果没有session数据就重新创建一个
 	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
+		// session回话到期时间
+		ex := time.Now().Add(time.Duration(_Cfg.MaxAge))
 		// 重新生成一个cookie 和唯一 sessionID
-		nc := newCookie(writer)
-		unescape, err := url.QueryUnescape(nc.Value)
-		if err != nil {
-			return nil, err
-		}
-		// 把加密的id解析成存储sid
-		sid, err := decodeStorageID(unescape, _Cfg.EncryptedKey)
+		nc := newCookie(writer, ex)
+		sid, err := url.QueryUnescape(nc.Value)
 		if err != nil {
 			return nil, err
 		}
 		session = &Session{
 			Cookie: nc,
 			ID:     sid,
+			// 重新计算session到期时间
+			Expire: ex,
 		}
 		return session, nil
 	}
@@ -68,12 +70,8 @@ func Ctx(writer http.ResponseWriter, request *http.Request) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 把加密的id解析成存储sid
-	sid, err := decodeStorageID(id, _Cfg.EncryptedKey)
-	if err != nil {
-		return nil, err
-	}
-	session = &Session{ID: sid, Cookie: cookie}
+	// 这里不用担心浏览器有sessionID 但是服务器没有数据 没有数据的话程序会出现开辟内存
+	session = &Session{ID: id, Cookie: cookie}
 	return session, nil
 }
 
@@ -84,12 +82,8 @@ func (s *Session) Get(key string) ([]byte, error) {
 	}
 	//var result Value
 	//result.Key = key
-	// 把加密的id解析成存储sid
-	sid, err := decodeStorageID(s.ID, _Cfg.EncryptedKey)
-	if err != nil {
-		return nil, err
-	}
-	b, err := _Store.Reader(sid, key)
+
+	b, err := _Store.Reader(s.ID, key)
 	if err != nil {
 		return nil, err
 	}
@@ -102,12 +96,8 @@ func (s *Session) Set(key string, data interface{}) error {
 	if key == "" || len(key) <= 0 {
 		return ErrorKeyFormat
 	}
-	// 把加密的id解析成存储sid
-	sid, err := decodeStorageID(s.ID, _Cfg.EncryptedKey)
-	if err != nil {
-		return err
-	}
-	return _Store.Writer(sid, key, data)
+
+	return _Store.Writer(s.ID, key, data)
 }
 
 // Del delete session data by key
@@ -115,37 +105,30 @@ func (s *Session) Del(key string) error {
 	if key == "" || len(key) <= 0 {
 		return ErrorKeyFormat
 	}
-	// 把加密的id解析成存储sid
-	sid, err := decodeStorageID(s.ID, _Cfg.EncryptedKey)
-	if err != nil {
-		return err
-	}
-	_Store.Remove(sid, key)
+
+	_Store.Remove(s.ID, key)
 	return nil
 }
 
 // Clean clean session data
 func (s *Session) Clean() {
-	// 把加密的id解析成存储sid
-	sid, _ := decodeStorageID(s.ID, _Cfg.EncryptedKey)
-	_Store.Clean(sid)
+
+	_Store.Clean(s.ID)
 }
 
-func newCookie(w http.ResponseWriter) *http.Cookie {
+func newCookie(w http.ResponseWriter, expire time.Time) *http.Cookie {
 	// 创建一个cookie
 	s := Random(32, RuleKindAll)
-	// 把存储id加密返回
-	bytes, _ := encodeByBytes(strToByte(_Cfg.EncryptedKey), s)
 	cookie := &http.Cookie{
 		Name: _Cfg.CookieName,
 		//这里是并发不安全的，但是这个方法已上锁
-		Value:    url.QueryEscape(bytes), //转义特殊符号@#￥%+*-等
+		Value:    url.QueryEscape(string(s)), //转义特殊符号@#￥%+*-等
 		Path:     _Cfg.Path,
 		Domain:   _Cfg.Domain,
 		HttpOnly: _Cfg.HttpOnly,
 		Secure:   _Cfg.Secure,
 		MaxAge:   int(_Cfg.MaxAge),
-		Expires:  time.Now().Add(time.Duration(_Cfg.MaxAge)),
+		Expires:  expire,
 	}
 	http.SetCookie(w, cookie) //设置到响应中
 	fmt.Println(cookie)
