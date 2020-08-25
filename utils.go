@@ -57,3 +57,14 @@ func Random(size int, kind int) []byte {
 	}
 	return result
 }
+
+// Random Password
+func randomString() string {
+	rand.Seed(time.Now().UnixNano())
+	// set string length
+	bytes := make([]byte, 0, 16)
+	for i := 0; i < cap(bytes); i++ {
+		bytes = append(bytes, byte(rand.Intn(16)))
+	}
+	return string(bytes)
+}

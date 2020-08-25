@@ -13,18 +13,22 @@ import (
 )
 
 func init() {
-	cfg := session.Config{
-		CookieName:     session.DefaultCookieName,
-		Path:           "/",
-		MaxAge:         60,
-		HttpOnly:       true,
-		Secure:         false,
-		RedisAddr:      "128.199.155.162:6379",
-		RedisPassword:  "deen.job",
-		RedisDB:        0,
-		RedisKeyPrefix: session.RedisPrefix,
-	}
-	err := session.Builder(session.Redis, &cfg)
+	//cfg := session.Config{
+	//	CookieName:     session.DefaultCookieName,
+	//	Path:           "/",
+	//	MaxAge:         60,
+	//	HttpOnly:       true,
+	//	Secure:         false,
+	//	RedisAddr:      "128.199.155.162:6379",
+	//	RedisPassword:  "deen.job",
+	//	RedisDB:        0,
+	//	RedisKeyPrefix: session.RedisPrefix,
+	//}
+	//err := session.Builder(session.Redis, &cfg)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	err := session.Builder(session.Memory, session.DefaultCfg())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,49 +49,49 @@ func main() {
 }
 
 func set(writer http.ResponseWriter, request *http.Request) {
-	capture, err := session.Capture(writer, request)
+	ctx, err := session.Ctx(writer, request)
 	if err != nil {
 		log.Println(err)
 	}
 	// set data for session
 	user := User{Name: "Ding", Age: 21}
-	capture.Set("K1", user)
+	ctx.Set("K1", user)
 	fmt.Fprintln(writer, "set value ok")
 }
 
 func get(writer http.ResponseWriter, request *http.Request) {
-	capture, err := session.Capture(writer, request)
+	ctx, err := session.Ctx(writer, request)
 	if err != nil {
 		log.Println(err)
 	}
-	bytes, err := capture.Get("K1")
+	bytes, err := ctx.Get("K1")
 	if err != nil {
 		log.Println("ERR", err)
 	}
 	u := new(User)
 	fmt.Println(bytes)
 	//Deserialize data into objects
-	session.DeSerialize(bytes, &u)
+	session.DeSerialize(bytes, u)
 	log.Println("GET K1 = ", u)
 	fmt.Fprintln(writer, u)
 }
 
 func clean(writer http.ResponseWriter, request *http.Request) {
-	capture, err := session.Capture(writer, request)
+	ctx, err := session.Ctx(writer, request)
 	if err != nil {
 		log.Println(err)
 	}
 	// clean session data
-	capture.Clean()
+	ctx.Clean()
 	fmt.Fprintln(writer, "clean data ok")
 }
 
 func del(writer http.ResponseWriter, request *http.Request) {
-	capture, err := session.Capture(writer, request)
+	ctx, err := session.Ctx(writer, request)
 	if err != nil {
 		log.Println(err)
 	}
-	err = capture.Del("K1")
+	err = ctx.Del("K1")
 	if err != nil {
 		fmt.Fprintln(writer, err)
 	}
