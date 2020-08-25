@@ -1,7 +1,7 @@
 // Copyright (c) 2020 HigKer
 // Open Source: MIT License
 // Author: SDing <deen.job@qq.com>
-// Date: 2020/8/4 - 10:40 PM
+// Date: 2020/8/23 - 9:10 PM - UTC/GMT+08:00
 
 package session
 
@@ -12,46 +12,11 @@ import (
 	"time"
 )
 
-type StoreType int8
-
-const (
-	MemoryStore StoreType = iota
-	RedisStore
-	maxSize           = 16
-	DefaultCookieName = "go_session_key"
-	DefaultMaxAge     = 30 * 60 // 30 min
-)
-
-var (
-	_Store Store
-	_Cfg   *Config
-)
-
-// Session standard
-type Session interface {
-	Set(Key, value interface{})
-	Get(Key interface{}) interface{}
-	Remove(Key interface{})
-	ID() string
-	Clear()
-}
-
-// Config param
-type Config struct {
-	// cookie参数
-	CookieName string // sessionID的cookie键名
-	Domain     string // sessionID的cookie作用域名
-	Path       string // sessionID的cookie作用路径
-	MaxAge     int    // 最大生命周期（秒）
-	HttpOnly   bool   // 仅用于http（无法被js读取）
-	Secure     bool   // 启用https
-	//Key                       string        // sessionID值加密的密钥
-	//RedisAddr      string // redis地址
-	//RedisPassword  string // redis密码
-	//RedisKeyPrefix string // redis键名前缀
-	// IdleTime                  time.Duration // 空闲生命周期
-	// RedisDB                   int           // redis数据库
-	// DisableAutoUpdateIdleTime bool          // 禁止自动更新空闲时间
+// Session Unite struct
+type Session struct {
+	ID     string
+	Cookie *http.Cookie
+	Expire time.Time
 }
 
 // Builder build  session store
@@ -59,62 +24,128 @@ func Builder(store StoreType, conf *Config) error {
 	if conf.MaxAge < DefaultMaxAge {
 		return errors.New("session maxAge no less than 30min")
 	}
+	_Cfg = conf
 	switch store {
 	default:
 		return errors.New("build session error, not implement type store")
-	case MemoryStore:
-		_Cfg = conf
+	case Memory:
 		_Store = newMemoryStore()
-		go _Store.GC()
+		_Cfg._st = Memory
 		return nil
-	case RedisStore:
-		return errors.New("not implement type store,to github: https://github.com/dxvgef/sessions")
+	case Redis:
+		redisStore, err := newRedisStore()
+		if err != nil {
+			return err
+		}
+		_Store = redisStore
+		_Cfg._st = Redis
+		return nil
 	}
 }
 
-// DefaultCfg default config
-func DefaultCfg() *Config {
-	return &Config{CookieName: DefaultCookieName, Path: "/", MaxAge: DefaultMaxAge, HttpOnly: true, Secure: false}
-}
-
-// Context Session handle func
-// return Session Item
-func Context(w http.ResponseWriter, r *http.Request) (Session, error) {
-	//防止处理时，进入另外的请求
-	cookie, err := r.Cookie(_Cfg.CookieName)
-	if err != nil || len(cookie.Value) <= 0 {
-		item := recordCookie(w, cookie)
-		return item, nil
+// Ctx return request session object
+func Ctx(writer http.ResponseWriter, request *http.Request) (*Session, error) {
+	var session *Session
+	// 检测是否有这个session数据
+	cookie, err := request.Cookie(_Cfg.CookieName)
+	// 如果没有session数据就重新创建一个
+	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
+		// 重新生成一个cookie 和唯一 sessionID
+		nc := newCookie(writer)
+		sid, err := url.QueryUnescape(nc.Value)
+		if err != nil {
+			return nil, err
+		}
+		session = &Session{
+			Cookie: nc,
+			ID:     sid,
+		}
+		return session, nil
 	}
 	// 防止浏览器关闭重新打开抛异常
-	sid, err := url.QueryUnescape(cookie.Value)
+	id, err := url.QueryUnescape(cookie.Value)
 	if err != nil {
 		return nil, err
 	}
-	session := _Store.(*MemoryStorage).sessions[sid]
-	if session == nil {
-		item := recordCookie(w, cookie)
-		return item, nil
-	}
-	return _Store.(*MemoryStorage).sessions[cookie.Value], nil
+	// 这里不用担心浏览器有sessionID 但是服务器没有数据 没有数据的话程序会出现开辟内存
+	session = &Session{ID: id, Cookie: cookie}
+	return session, nil
 }
 
-func recordCookie(w http.ResponseWriter, cookie *http.Cookie) Session {
+// Get get session data by key
+func (s *Session) Get(key string) ([]byte, error) {
+	if key == "" || len(key) <= 0 {
+		return nil, ErrorKeyNotExist
+	}
+	//var result Value
+	//result.Key = key
+
+	b, err := _Store.Reader(s.parseID(), key)
+	if err != nil {
+		return nil, err
+	}
+	//result.Value = b
+	return b, nil
+}
+
+// Set set session data by key
+func (s *Session) Set(key string, data interface{}) error {
+	if key == "" || len(key) <= 0 {
+		return ErrorKeyFormat
+	}
+
+	return _Store.Writer(s.parseID(), key, data)
+}
+
+// Del delete session data by key
+func (s *Session) Del(key string) error {
+	if key == "" || len(key) <= 0 {
+		return ErrorKeyFormat
+	}
+
+	_Store.Remove(s.parseID(), key)
+	return nil
+}
+
+// Clean clean session data
+func (s *Session) Clean(w http.ResponseWriter) {
+	_Store.Clean(s.parseID())
+	cookie := &http.Cookie{
+		Name:     _Cfg.CookieName,
+		Value:    "",
+		Path:     _Cfg.Path,
+		Domain:   _Cfg.Domain,
+		Secure:   _Cfg.Secure,
+		MaxAge:   int(_Cfg.MaxAge),
+		Expires:  time.Now().Add(time.Duration(_Cfg.MaxAge)),
+		HttpOnly: _Cfg.HttpOnly,
+	}
+	http.SetCookie(w, cookie)
+}
+
+func newCookie(w http.ResponseWriter) *http.Cookie {
 	// 创建一个cookie
-	sid := string(Random(32, RuleKindAll))
-	cookie = &http.Cookie{
+	s := Random(32, RuleKindAll)
+	cookie := &http.Cookie{
 		Name: _Cfg.CookieName,
 		//这里是并发不安全的，但是这个方法已上锁
-		Value:    url.QueryEscape(sid), //转义特殊符号@#￥%+*-等
+		Value:    url.QueryEscape(string(s)), //转义特殊符号@#￥%+*-等
 		Path:     _Cfg.Path,
 		Domain:   _Cfg.Domain,
 		HttpOnly: _Cfg.HttpOnly,
 		Secure:   _Cfg.Secure,
-		MaxAge:   _Cfg.MaxAge,
+		MaxAge:   int(_Cfg.MaxAge),
 		Expires:  time.Now().Add(time.Duration(_Cfg.MaxAge)),
 	}
 	http.SetCookie(w, cookie) //设置到响应中
-	item := newSessionItem(sid, _Cfg.MaxAge)
-	_Store.(*MemoryStorage).sessions[sid] = item
-	return item
+	return cookie
+}
+
+// 解决ID格式
+// 如果内存存储ID后面会有超时时间戳
+func (s *Session) parseID() string {
+	if _Cfg._st == Memory {
+		return s.ID + ":" + ParseString(s.Cookie.Expires.UnixNano())
+	}
+	return s.ID
 }

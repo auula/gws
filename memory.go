@@ -1,85 +1,80 @@
 // Copyright (c) 2020 HigKer
 // Open Source: MIT License
 // Author: SDing <deen.job@qq.com>
-// Date: 2020/8/4 - 10:43 PM
+// Date: 2020/8/23 - 9:08 PM - UTC/GMT+08:00
 
 package session
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
 
-type MemoryStorage struct {
-	//由于session包含所有的请求
-	//并行时，保证数据独立、一致、安全
-	lock     sync.Mutex //互斥锁
-	sessions map[string]Session
+// MemoryStore 内存存储实现
+type MemoryStore struct {
+	// lock When parallel, ensure data independence, consistency and safety
+	mx sync.Mutex
+	// sid:key:data save serialize data
+	values map[string]map[string][]byte
 }
 
-func newMemoryStore() *MemoryStorage {
-	return &MemoryStorage{sessions: make(map[string]Session, 128*maxSize)}
+// newMemoryStore 创建一个内存存储 开辟内存
+func newMemoryStore() *MemoryStore {
+	ms := &MemoryStore{values: make(map[string]map[string][]byte, MemoryMaxSize)}
+	//ms.values[""] = make(map[string]interface{},maxSize)
+	go ms.gc()
+	return ms
 }
 
-func (ms *MemoryStorage) GC() {
-	// 10 分钟进行一次垃圾收集
+// Writer 写入数据方法
+func (m *MemoryStore) Writer(id, key string, data interface{}) error {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+	// check map pointer is exist
+	if m.values[id] == nil {
+		m.values[id] = make(map[string][]byte, maxSize)
+	}
+	serialize, err := Serialize(data)
+	if err != nil {
+		return err
+	}
+	m.values[id][key] = serialize
+	//log.Printf("%p",m.values[id])
+	//log.Println(m.values[id][key])
+	return nil
+
+}
+
+// Reader 读取数据 通过id和key
+func (m *MemoryStore) Reader(id, key string) ([]byte, error) {
+	return m.values[id][key], nil
+}
+
+// Remove 通过id和key移除数据
+func (m *MemoryStore) Remove(id, key string) {
+	delete(m.values[id], key)
+
+}
+
+// Clean 通过id清空data
+func (m *MemoryStore) Clean(id string) {
+	m.values[id] = make(map[string][]byte, maxSize)
+}
+
+// gc GarbageCollection
+func (m *MemoryStore) gc() {
 	for {
+		// 每10分钟进行一次垃圾清理  session过期的全部清理掉
 		time.Sleep(10 * 60 * time.Second)
-		sessions := ms.sessions
-		if len(sessions) < 1 {
+		if len(m.values) < 1 {
 			continue
 		}
-		for k, v := range sessions {
-			// fmt.Println(time.Now())
-			// fmt.Println(v.(*Item).expires)
-			if time.Now().Unix() >= v.(*Item).expires.Unix() { //超时了
-				// fmt.Println("ID:", k, "被GC清理了")
-				delete(ms.sessions, k)
+		for s, _ := range m.values {
+			if time.Now().UnixNano() >= ParseInt64(strings.Split(s, ":")[1]) {
+				//fmt.Println("销毁——>", strings.Split(s, ":")[0])
+				delete(m.values, s)
 			}
 		}
 	}
-}
-
-// Item a session  item
-type Item struct {
-	sID     string                      // unique id
-	safe    sync.Mutex                  // mutex lock
-	expires time.Time                   // Expires time
-	data    map[interface{}]interface{} // save data
-}
-
-//实例化
-func newSessionItem(id string, maxAge int) *Item {
-	return &Item{
-		data:    make(map[interface{}]interface{}, maxSize),
-		sID:     id,
-		expires: time.Now().Add(time.Duration(maxAge) * time.Second),
-	}
-}
-
-//同一个会话均可调用，进行设置，改操作必须拥有排斥锁
-func (si *Item) Set(key, value interface{}) {
-	si.safe.Lock()
-	defer si.safe.Unlock()
-	si.data[key] = value
-}
-
-func (si *Item) Get(key interface{}) interface{} {
-	if value := si.data[key]; value != nil {
-		return value
-	}
-	return nil
-}
-
-func (si *Item) Remove(key interface{}) {
-	if value := si.data[key]; value != nil {
-		delete(si.data, key)
-	}
-}
-
-func (si *Item) ID() string {
-	return si.sID
-}
-func (si *Item) Clear() {
-	si.data = make(map[interface{}]interface{}, maxSize)
 }

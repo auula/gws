@@ -1,25 +1,39 @@
 // Copyright (c) 2020 HigKer
 // Open Source: MIT License
 // Author: SDing <deen.job@qq.com>
-// Date: 2020/7/30 - 6:54 PM
+// Date: 2020/8/24 - 3:58 下午 - UTC/GMT+08:00
 
 package session
 
 import (
 	"math/rand"
+	"strconv"
 	"time"
 )
 
-const (
-	// RuleKindNumber is Number
-	RuleKindNumber = iota
-	// RuleKindLower is letter lower
-	RuleKindLower
-	// RuleKindUpper is letter upper
-	RuleKindUpper
-	// RuleKindAll is all rule
-	RuleKindAll
-)
+// ParseString  int64  parse to string
+func ParseString(nano int64) string {
+	return strconv.FormatInt(nano, 10)
+}
+
+// ParseInt64 string parse to int64
+// ret: -1 is  parse field
+func ParseInt64(nano string) int64 {
+	parseInt, err := strconv.ParseInt(nano, 10, 64)
+	if err != nil {
+		return -1
+	}
+	return parseInt
+}
+
+func randomID(len int8) []byte {
+	rand.Seed(time.Now().UnixNano())
+	result := make([]byte, 0, len)
+	for i := 0; i < cap(result); i++ {
+		result = append(result, byte(rand.Intn(26)+65))
+	}
+	return result
+}
 
 // Random is random string func
 // ASCII CODE
@@ -45,12 +59,12 @@ func Random(size int, kind int) []byte {
 }
 
 // Random Password
-func randomString() []byte {
+func randomString() string {
 	rand.Seed(time.Now().UnixNano())
 	// set string length
-	bytes := make([]byte, 0, 26)
+	bytes := make([]byte, 0, 16)
 	for i := 0; i < cap(bytes); i++ {
-		bytes = append(bytes, byte(rand.Intn(26)+65))
+		bytes = append(bytes, byte(rand.Intn(16)))
 	}
-	return bytes
+	return string(bytes)
 }
