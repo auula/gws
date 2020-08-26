@@ -29,13 +29,85 @@ type MemorySession struct {
 	Data    map[string]interface{} // Save data
 }
 
+// Session for  Memory item
+type RedisSession struct {
+	ID      string     // Unique id
+	Safe    sync.Mutex // Mutex lock
+	Expires time.Time  // Expires time
+}
+
 //实例化
+func newRSession(id string, maxAge int) *RedisSession {
+	return &RedisSession{
+		ID:      id,
+		Expires: time.Now().Add(time.Duration(maxAge) * time.Second),
+	}
+}
+
+//实例化 RS
 func newMSessionItem(id string, maxAge int) *MemorySession {
 	return &MemorySession{
 		Data:    make(map[string]interface{}, maxSize),
 		ID:      id,
 		Expires: time.Now().Add(time.Duration(maxAge) * time.Second),
 	}
+}
+
+// Get get session data by key
+func (rs *RedisSession) Get(key string) ([]byte, error) {
+	if key == "" || len(key) <= 0 {
+		return nil, ErrorKeyNotExist
+	}
+	//var result Value
+	//result.Key = key
+	// 把id和到期时间传过去方便后面使用
+	cv := map[string]interface{}{contextValueID: rs.ID, contextValueKey: key}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	b, err := _Store.Reader(value)
+	if err != nil {
+		return nil, err
+	}
+	//result.Value = b
+	return b, nil
+}
+
+// Set set session data by key
+func (rs *RedisSession) Set(key string, data interface{}) error {
+	if key == "" || len(key) <= 0 {
+		return ErrorKeyFormat
+	}
+	cv := map[string]interface{}{contextValueID: rs.ID, contextValueKey: key, contextValueData: data}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	return _Store.Writer(value)
+}
+
+// Del delete session data by key
+func (rs *RedisSession) Del(key string) error {
+	if key == "" || len(key) <= 0 {
+		return ErrorKeyFormat
+	}
+	cv := map[string]interface{}{contextValueID: rs.ID, contextValueKey: key}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	_Store.Remove(value)
+	return nil
+}
+
+// Clean clean session data
+func (rs *RedisSession) Clean(w http.ResponseWriter) {
+	cv := map[string]interface{}{contextValueID: rs.ID}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	_Store.Clean(value)
+	cookie := &http.Cookie{
+		Name:     _Cfg.CookieName,
+		Value:    "",
+		Path:     _Cfg.Path,
+		Domain:   _Cfg.Domain,
+		Secure:   _Cfg.Secure,
+		MaxAge:   -1,
+		Expires:  time.Now().AddDate(-1, 0, 0),
+		HttpOnly: _Cfg.HttpOnly,
+	}
+	http.SetCookie(w, cookie)
 }
 
 // Builder build  session store
@@ -53,11 +125,11 @@ func Builder(store StoreType, conf *Config) error {
 		_Cfg._st = Memory
 		return nil
 	case Redis:
-		//redisStore, err := newRedisStore()
-		//if err != nil {
-		//	return err
-		//}
-		//_Store = redisStore
+		redisStore, err := newRedisStore()
+		if err != nil {
+			return err
+		}
+		_Store = redisStore
 		_Cfg._st = Redis
 		return nil
 	}
@@ -74,7 +146,7 @@ func Ctx(writer http.ResponseWriter, request *http.Request) (Session, error) {
 	cookie, err := request.Cookie(_Cfg.CookieName)
 	if _Cfg._st == Memory {
 		if err != nil || len(cookie.Value) <= 0 {
-			item := recordCookie(writer, cookie)
+			item := newCookie(writer, cookie)
 			return item, nil
 		}
 		// 防止浏览器关闭重新打开抛异常
@@ -84,7 +156,7 @@ func Ctx(writer http.ResponseWriter, request *http.Request) (Session, error) {
 		}
 		session := _Store.(*MemoryStore).values[sid]
 		if session == nil {
-			item := recordCookie(writer, cookie)
+			item := newCookie(writer, cookie)
 			_Store.(*MemoryStore).values[sid] = item.(*MemorySession)
 			return item, nil
 		}
@@ -152,14 +224,12 @@ func (ms *MemorySession) Clean(w http.ResponseWriter) {
 }
 
 // 检测sessionID是否有效
-func checkID(id string) bool {
-	if len(_Store.(*MemoryStore).values) > 0 {
-		return _Store.(*MemoryStore).values[id] == nil
-	}
-	return false
+func IdNotExist(id string) bool {
+	return _Store.(*RedisStore).client.HGetAll(_Cfg.RedisKeyPrefix+id).Err() == nil
+
 }
 
-func recordCookie(w http.ResponseWriter, cookie *http.Cookie) Session {
+func newCookie(w http.ResponseWriter, cookie *http.Cookie) (session Session) {
 	// 创建一个cookie
 	sid := string(Random(32, RuleKindAll))
 	cookie = &http.Cookie{
@@ -174,7 +244,11 @@ func recordCookie(w http.ResponseWriter, cookie *http.Cookie) Session {
 		Expires:  time.Now().Add(time.Duration(_Cfg.MaxAge)),
 	}
 	http.SetCookie(w, cookie) //设置到响应中
-	item := newMSessionItem(sid, int(_Cfg.MaxAge))
-	_Store.(*MemoryStore).values[sid] = item
-	return item
+	if _Cfg._st == Memory {
+		item := newMSessionItem(sid, int(_Cfg.MaxAge))
+		_Store.(*MemoryStore).values[sid] = item
+		session = item
+	}
+	session = newRSession(sid, int(_Cfg.MaxAge))
+	return
 }
