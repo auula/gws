@@ -6,7 +6,8 @@
 package session
 
 import (
-	"strings"
+	"context"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -16,26 +17,30 @@ type MemoryStore struct {
 	// lock When parallel, ensure data independence, consistency and safety
 	mx sync.Mutex
 	// sid:key:data save serialize data
-	values map[string]map[string][]byte
+	values map[string]*MemorySession
 }
 
 // newMemoryStore 创建一个内存存储 开辟内存
 func newMemoryStore() *MemoryStore {
-	ms := &MemoryStore{values: make(map[string]map[string][]byte, MemoryMaxSize)}
+	ms := &MemoryStore{values: make(map[string]*MemorySession, MemoryMaxSize)}
 	//ms.values[""] = make(map[string]interface{},maxSize)
+	_GarbageList = make([]*garbage, 0, MemoryMaxSize)
 	go ms.gc()
 	return ms
 }
 
 // Writer 写入数据方法
-func (m *MemoryStore) Writer(id, key string, data interface{}) error {
+func (m *MemoryStore) Writer(ctx context.Context) error {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 	// check map pointer is exist
+	cv := ctx.Value(contextValue).(map[string]interface{})
+	id := cv[contextValueID].(string)
 	if m.values[id] == nil {
-		m.values[id] = make(map[string][]byte, maxSize)
+		// 方便后面进行gc()
+		gcPut(&garbage{ID: id, Exp: cv[contextValueExpire].(*time.Time)})
 	}
-	serialize, err := Serialize(data)
+	serialize, err := Serialize(cv[contextValueData].(*))
 	if err != nil {
 		return err
 	}
@@ -43,7 +48,6 @@ func (m *MemoryStore) Writer(id, key string, data interface{}) error {
 	//log.Printf("%p",m.values[id])
 	//log.Println(m.values[id][key])
 	return nil
-
 }
 
 // Reader 读取数据 通过id和key
@@ -64,17 +68,19 @@ func (m *MemoryStore) Clean(id string) {
 
 // gc GarbageCollection
 func (m *MemoryStore) gc() {
+	var index int
 	for {
-		// 每10分钟进行一次垃圾清理  session过期的全部清理掉
-		time.Sleep(10 * 60 * time.Second)
-		if len(m.values) < 1 {
-			continue
-		}
-		for s, _ := range m.values {
-			if time.Now().UnixNano() >= ParseInt64(strings.Split(s, ":")[1]) {
-				//fmt.Println("销毁——>", strings.Split(s, ":")[0])
-				delete(m.values, s)
+		time.Sleep(10 * time.Second)
+		for i, g := range _GarbageList {
+			index = i
+			fmt.Println(g.ID, g.Exp.UnixNano())
+			if time.Now().UnixNano() >= g.Exp.UnixNano() {
+				delete(m.values, g.ID)
 			}
+		}
+		if len(_GarbageList) > 0 {
+			// 移除垃圾堆里面的session
+			_GarbageList = remove(index, _GarbageList)
 		}
 	}
 }

@@ -6,6 +6,7 @@
 package session
 
 import (
+	"context"
 	"github.com/go-redis/redis"
 	"sync"
 	"time"
@@ -31,12 +32,12 @@ func newRedisStore() (*RedisStore, error) {
 	}, nil
 }
 
-func (r *RedisStore) Writer(id, key string, data interface{}) error {
+func (r *RedisStore) Writer(ctx context.Context, key string, data interface{}) error {
 	serialize, err := Serialize(data)
 	if err != nil {
 		return err
 	}
-	tmpKey := _Cfg.RedisKeyPrefix + id
+	tmpKey := _Cfg.RedisKeyPrefix + ctx.Value(contextValueID).(string)
 	_, err = r.client.HSet(tmpKey, key, serialize).Result()
 	// redis auto del expire data
 	if err != nil {

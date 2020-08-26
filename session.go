@@ -6,24 +6,31 @@
 package session
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
 	"time"
 )
 
+type Session interface {
+	Get(key string) ([]byte, error)
+	Set(key string, data interface{}) ([]byte, error)
+	Del(key string) error
+	Clean(w http.ResponseWriter)
+}
+
 // Session Unite struct
-type Session struct {
+type MemorySession struct {
 	ID     string
-	Cookie *http.Cookie
 	Expire time.Time
 }
 
 // Builder build  session store
 func Builder(store StoreType, conf *Config) error {
-	if conf.MaxAge < DefaultMaxAge {
-		return errors.New("session maxAge no less than 30min")
-	}
+	// if conf.MaxAge < DefaultMaxAge {
+	// 	return errors.New("session maxAge no less than 30min")
+	// }
 	_Cfg = conf
 	switch store {
 	default:
@@ -46,10 +53,15 @@ func Builder(store StoreType, conf *Config) error {
 // Ctx return request session object
 func Ctx(writer http.ResponseWriter, request *http.Request) (*Session, error) {
 	var session *Session
+
 	// 检测是否有这个session数据
+	// 1.全局session垃圾回收器
+	// 2.请求一过来就进行检测
+	// 3.如果请求的id值在内存存在并且垃圾回收也存在时间也是有效的就说明这个session是有效的
 	cookie, err := request.Cookie(_Cfg.CookieName)
-	// 如果没有session数据就重新创建一个
+	// 如果没有cookie数据就重新创建一个
 	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
+
 		// 重新生成一个cookie 和唯一 sessionID
 		nc := newCookie(writer)
 		sid, err := url.QueryUnescape(nc.Value)
@@ -57,18 +69,18 @@ func Ctx(writer http.ResponseWriter, request *http.Request) (*Session, error) {
 			return nil, err
 		}
 		session = &Session{
-			Cookie: nc,
 			ID:     sid,
+			Expire: nc.Expires,
 		}
 		return session, nil
 	}
-	// 防止浏览器关闭重新打开抛异常
-	id, err := url.QueryUnescape(cookie.Value)
-	if err != nil {
-		return nil, err
+	if containID(cookie.Value) && time.Now().UnixNano() < cookie.Expires.UnixNano() {
+		sid, err := url.QueryUnescape(cookie.Value)
+		if err != nil {
+			return nil, err
+		}
+		session = &Session{ID: sid, Expire: cookie.Expires}
 	}
-	// 这里不用担心浏览器有sessionID 但是服务器没有数据 没有数据的话程序会出现开辟内存
-	session = &Session{ID: id, Cookie: cookie}
 	return session, nil
 }
 
@@ -80,7 +92,7 @@ func (s *Session) Get(key string) ([]byte, error) {
 	//var result Value
 	//result.Key = key
 
-	b, err := _Store.Reader(s.parseID(), key)
+	b, err := _Store.Reader(s.ID, key)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +105,9 @@ func (s *Session) Set(key string, data interface{}) error {
 	if key == "" || len(key) <= 0 {
 		return ErrorKeyFormat
 	}
-
-	return _Store.Writer(s.parseID(), key, data)
+	// 把id和到期时间传过去方便后面使用
+	cv := map[string]interface{}{contextValueID: s.ID, contextValueExpire: &s.Expire}
+	return _Store.Writer(context.WithValue(context.TODO(), contextValue, cv), key, data)
 }
 
 // Del delete session data by key
@@ -103,13 +116,13 @@ func (s *Session) Del(key string) error {
 		return ErrorKeyFormat
 	}
 
-	_Store.Remove(s.parseID(), key)
+	_Store.Remove(s.ID, key)
 	return nil
 }
 
 // Clean clean session data
 func (s *Session) Clean(w http.ResponseWriter) {
-	_Store.Clean(s.parseID())
+	_Store.Clean(s.ID)
 	cookie := &http.Cookie{
 		Name:     _Cfg.CookieName,
 		Value:    "",
@@ -141,11 +154,10 @@ func newCookie(w http.ResponseWriter) *http.Cookie {
 	return cookie
 }
 
-// 解决ID格式
-// 如果内存存储ID后面会有超时时间戳
-func (s *Session) parseID() string {
-	if _Cfg._st == Memory {
-		return s.ID + ":" + ParseString(s.Cookie.Expires.UnixNano())
+// 检测sessionID是否有效
+func checkID(id string) bool {
+	if len(_Store.(*MemoryStore).values) > 0 {
+		return _Store.(*MemoryStore).values[id] == nil
 	}
-	return s.ID
+	return false
 }

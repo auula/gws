@@ -7,9 +7,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/higker/go-session"
 	"log"
 	"net/http"
+
+	"github.com/higker/go-session"
 )
 
 func init() {
@@ -20,7 +21,7 @@ func init() {
 		HttpOnly:       true,
 		Secure:         false,
 		RedisAddr:      "128.199.155.162:6379",
-		RedisPassword:  "your password",
+		RedisPassword:  "deen.110",
 		RedisDB:        0,
 		RedisKeyPrefix: session.RedisPrefix,
 	}

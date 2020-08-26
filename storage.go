@@ -5,11 +5,14 @@
 
 package session
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // Storage is session store standard
 type Storage interface {
-	Writer(id, key string, data interface{}) error
+	Writer(ctx context.Context, key string, data interface{}) error
 	Reader(id, key string) ([]byte, error)
 	Remove(id, key string)
 	Clean(id string)
