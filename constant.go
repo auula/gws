@@ -30,6 +30,13 @@ const (
 	RuleKindUpper
 	// RuleKindAll is all rule
 	RuleKindAll
+
+	// 垃圾回收上下文标识符
+	contextValue       = "ctxV"
+	contextValueID     = "sessionID"   // 上下文 存储的id的标识符
+	contextValueExpire = "sessionExp"  // 上下文 存储的过期时间标识符
+	contextValueData   = "sessionData" // 上下文 存储的数据标识符
+	contextValueKey    = "sessionKey"  // 上下文 存储的key标识符
 )
 
 var (

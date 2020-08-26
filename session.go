@@ -6,17 +6,108 @@
 package session
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 )
 
-// Session Unite struct
-type Session struct {
-	ID     string
-	Cookie *http.Cookie
-	Expire time.Time
+type Session interface {
+	Get(key string) ([]byte, error)
+	Set(key string, data interface{}) error
+	Del(key string) error
+	Clean(w http.ResponseWriter)
+}
+
+// Session for  Memory item
+type MemorySession struct {
+	ID      string                 // Unique id
+	Safe    sync.Mutex             // Mutex lock
+	Expires time.Time              // Expires time
+	Data    map[string]interface{} // Save data
+}
+
+// Session for  Memory item
+type RedisSession struct {
+	ID      string     // Unique id
+	Safe    sync.Mutex // Mutex lock
+	Expires time.Time  // Expires time
+}
+
+//实例化
+func newRSession(id string, maxAge int) *RedisSession {
+	return &RedisSession{
+		ID:      id,
+		Expires: time.Now().Add(time.Duration(maxAge) * time.Second),
+	}
+}
+
+//实例化 RS
+func newMSessionItem(id string, maxAge int) *MemorySession {
+	return &MemorySession{
+		Data:    make(map[string]interface{}, maxSize),
+		ID:      id,
+		Expires: time.Now().Add(time.Duration(maxAge) * time.Second),
+	}
+}
+
+// Get get session data by key
+func (rs *RedisSession) Get(key string) ([]byte, error) {
+	if key == "" || len(key) <= 0 {
+		return nil, ErrorKeyNotExist
+	}
+	//var result Value
+	//result.Key = key
+	// 把id和到期时间传过去方便后面使用
+	cv := map[string]interface{}{contextValueID: rs.ID, contextValueKey: key}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	b, err := _Store.Reader(value)
+	if err != nil {
+		return nil, err
+	}
+	//result.Value = b
+	return b, nil
+}
+
+// Set set session data by key
+func (rs *RedisSession) Set(key string, data interface{}) error {
+	if key == "" || len(key) <= 0 {
+		return ErrorKeyFormat
+	}
+	cv := map[string]interface{}{contextValueID: rs.ID, contextValueKey: key, contextValueData: data}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	return _Store.Writer(value)
+}
+
+// Del delete session data by key
+func (rs *RedisSession) Del(key string) error {
+	if key == "" || len(key) <= 0 {
+		return ErrorKeyFormat
+	}
+	cv := map[string]interface{}{contextValueID: rs.ID, contextValueKey: key}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	_Store.Remove(value)
+	return nil
+}
+
+// Clean clean session data
+func (rs *RedisSession) Clean(w http.ResponseWriter) {
+	cv := map[string]interface{}{contextValueID: rs.ID}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	_Store.Clean(value)
+	cookie := &http.Cookie{
+		Name:     _Cfg.CookieName,
+		Value:    "",
+		Path:     _Cfg.Path,
+		Domain:   _Cfg.Domain,
+		Secure:   _Cfg.Secure,
+		MaxAge:   -1,
+		Expires:  time.Now().AddDate(-1, 0, 0),
+		HttpOnly: _Cfg.HttpOnly,
+	}
+	http.SetCookie(w, cookie)
 }
 
 // Builder build  session store
@@ -24,6 +115,7 @@ func Builder(store StoreType, conf *Config) error {
 	if conf.MaxAge < DefaultMaxAge {
 		return errors.New("session maxAge no less than 30min")
 	}
+
 	_Cfg = conf
 	switch store {
 	default:
@@ -44,43 +136,47 @@ func Builder(store StoreType, conf *Config) error {
 }
 
 // Ctx return request session object
-func Ctx(writer http.ResponseWriter, request *http.Request) (*Session, error) {
-	var session *Session
+func Ctx(writer http.ResponseWriter, request *http.Request) (Session, error) {
+
 	// 检测是否有这个session数据
+	// 1.全局session垃圾回收器
+	// 2.请求一过来就进行检测
+	// 3.如果请求的id值在内存存在并且垃圾回收也存在时间也是有效的就说明这个session是有效的
+
 	cookie, err := request.Cookie(_Cfg.CookieName)
-	// 如果没有session数据就重新创建一个
-	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
-		// 重新生成一个cookie 和唯一 sessionID
-		nc := newCookie(writer)
-		sid, err := url.QueryUnescape(nc.Value)
+	if _Cfg._st == Memory {
+		if err != nil || len(cookie.Value) <= 0 {
+			item := newCookie(writer, cookie)
+			return item, nil
+		}
+		// 防止浏览器关闭重新打开抛异常
+		sid, err := url.QueryUnescape(cookie.Value)
 		if err != nil {
 			return nil, err
 		}
-		session = &Session{
-			Cookie: nc,
-			ID:     sid,
+		session := _Store.(*MemoryStore).values[sid]
+		if session == nil {
+			item := newCookie(writer, cookie)
+			_Store.(*MemoryStore).values[sid] = item.(*MemorySession)
+			return item, nil
 		}
-		return session, nil
+		return _Store.(*MemoryStore).values[cookie.Value], nil
 	}
-	// 防止浏览器关闭重新打开抛异常
-	id, err := url.QueryUnescape(cookie.Value)
-	if err != nil {
-		return nil, err
-	}
-	// 这里不用担心浏览器有sessionID 但是服务器没有数据 没有数据的话程序会出现开辟内存
-	session = &Session{ID: id, Cookie: cookie}
-	return session, nil
+
+	return nil, nil
 }
 
 // Get get session data by key
-func (s *Session) Get(key string) ([]byte, error) {
+func (ms *MemorySession) Get(key string) ([]byte, error) {
 	if key == "" || len(key) <= 0 {
 		return nil, ErrorKeyNotExist
 	}
 	//var result Value
 	//result.Key = key
-
-	b, err := _Store.Reader(s.parseID(), key)
+	// 把id和到期时间传过去方便后面使用
+	cv := map[string]interface{}{contextValueID: ms.ID, contextValueKey: key}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	b, err := _Store.Reader(value)
 	if err != nil {
 		return nil, err
 	}
@@ -89,47 +185,57 @@ func (s *Session) Get(key string) ([]byte, error) {
 }
 
 // Set set session data by key
-func (s *Session) Set(key string, data interface{}) error {
+func (ms *MemorySession) Set(key string, data interface{}) error {
 	if key == "" || len(key) <= 0 {
 		return ErrorKeyFormat
 	}
-
-	return _Store.Writer(s.parseID(), key, data)
+	cv := map[string]interface{}{contextValueID: ms.ID, contextValueKey: key, contextValueData: data}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	return _Store.Writer(value)
 }
 
 // Del delete session data by key
-func (s *Session) Del(key string) error {
+func (ms *MemorySession) Del(key string) error {
 	if key == "" || len(key) <= 0 {
 		return ErrorKeyFormat
 	}
-
-	_Store.Remove(s.parseID(), key)
+	cv := map[string]interface{}{contextValueID: ms.ID, contextValueKey: key}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	_Store.Remove(value)
 	return nil
 }
 
 // Clean clean session data
-func (s *Session) Clean(w http.ResponseWriter) {
-	_Store.Clean(s.parseID())
+func (ms *MemorySession) Clean(w http.ResponseWriter) {
+	cv := map[string]interface{}{contextValueID: ms.ID}
+	value := context.WithValue(context.TODO(), contextValue, cv)
+	_Store.Clean(value)
 	cookie := &http.Cookie{
 		Name:     _Cfg.CookieName,
 		Value:    "",
 		Path:     _Cfg.Path,
 		Domain:   _Cfg.Domain,
 		Secure:   _Cfg.Secure,
-		MaxAge:   int(_Cfg.MaxAge),
-		Expires:  time.Now().Add(time.Duration(_Cfg.MaxAge)),
+		MaxAge:   -1,
+		Expires:  time.Now().AddDate(-1, 0, 0),
 		HttpOnly: _Cfg.HttpOnly,
 	}
 	http.SetCookie(w, cookie)
 }
 
-func newCookie(w http.ResponseWriter) *http.Cookie {
+//// 检测sessionID是否有效
+//func IdNotExist(id string) bool {
+//	return _Store.(*RedisStore).client.HGetAll(_Cfg.RedisKeyPrefix+id).Err() == nil
+//
+//}
+
+func newCookie(w http.ResponseWriter, cookie *http.Cookie) (session Session) {
 	// 创建一个cookie
-	s := Random(32, RuleKindAll)
-	cookie := &http.Cookie{
+	sid := string(Random(32, RuleKindAll))
+	cookie = &http.Cookie{
 		Name: _Cfg.CookieName,
 		//这里是并发不安全的，但是这个方法已上锁
-		Value:    url.QueryEscape(string(s)), //转义特殊符号@#￥%+*-等
+		Value:    url.QueryEscape(sid), //转义特殊符号@#￥%+*-等
 		Path:     _Cfg.Path,
 		Domain:   _Cfg.Domain,
 		HttpOnly: _Cfg.HttpOnly,
@@ -138,14 +244,12 @@ func newCookie(w http.ResponseWriter) *http.Cookie {
 		Expires:  time.Now().Add(time.Duration(_Cfg.MaxAge)),
 	}
 	http.SetCookie(w, cookie) //设置到响应中
-	return cookie
-}
-
-// 解决ID格式
-// 如果内存存储ID后面会有超时时间戳
-func (s *Session) parseID() string {
 	if _Cfg._st == Memory {
-		return s.ID + ":" + ParseString(s.Cookie.Expires.UnixNano())
+		item := newMSessionItem(sid, int(_Cfg.MaxAge))
+		_Store.(*MemoryStore).values[sid] = item
+		session = item
+		return
 	}
-	return s.ID
+	session = newRSession(sid, int(_Cfg.MaxAge))
+	return
 }
