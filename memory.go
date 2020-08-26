@@ -8,7 +8,6 @@ package session
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -90,7 +89,7 @@ func (m *MemoryStore) gc() {
 		//}
 		for _, v := range sessions {
 			if time.Now().UnixNano() >= v.Expires.UnixNano() { //超时了
-				fmt.Println("ID:", v.ID, "被GC清理了")
+				//fmt.Println("ID:", v.ID, "被GC清理了")
 				delete(m.values, v.ID)
 			}
 		}

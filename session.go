@@ -248,6 +248,7 @@ func newCookie(w http.ResponseWriter, cookie *http.Cookie) (session Session) {
 		item := newMSessionItem(sid, int(_Cfg.MaxAge))
 		_Store.(*MemoryStore).values[sid] = item
 		session = item
+		return
 	}
 	session = newRSession(sid, int(_Cfg.MaxAge))
 	return
