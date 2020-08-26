@@ -32,13 +32,14 @@ func newRedisStore() (*RedisStore, error) {
 	}, nil
 }
 
-func (r *RedisStore) Writer(ctx context.Context, key string, data interface{}) error {
-	serialize, err := Serialize(data)
+func (r *RedisStore) Writer(ctx context.Context) error {
+	cv := ctx.Value(contextValue).(map[string]interface{})
+	serialize, err := Serialize(cv[contextValueData])
 	if err != nil {
 		return err
 	}
-	tmpKey := _Cfg.RedisKeyPrefix + ctx.Value(contextValueID).(string)
-	_, err = r.client.HSet(tmpKey, key, serialize).Result()
+	tmpKey := _Cfg.RedisKeyPrefix + cv[contextValueID].(string)
+	_, err = r.client.HSet(tmpKey, cv[contextValueKey].(string), serialize).Result()
 	// redis auto del expire data
 	if err != nil {
 		return ErrorSetValue
@@ -50,9 +51,10 @@ func (r *RedisStore) Writer(ctx context.Context, key string, data interface{}) e
 	return nil
 }
 
-func (r *RedisStore) Reader(id, key string) ([]byte, error) {
-	tmpKey := _Cfg.RedisKeyPrefix + id
-	result, err := r.client.HGet(tmpKey, key).Result()
+func (r *RedisStore) Reader(ctx context.Context) ([]byte, error) {
+	cv := ctx.Value(contextValue).(map[string]interface{})
+	tmpKey := _Cfg.RedisKeyPrefix + cv[contextValueID].(string)
+	result, err := r.client.HGet(tmpKey, cv[contextValueKey].(string)).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +63,14 @@ func (r *RedisStore) Reader(id, key string) ([]byte, error) {
 	return []byte(result), err
 }
 
-func (r *RedisStore) Remove(id, key string) {
-	tmpKey := _Cfg.RedisKeyPrefix + id
-	r.client.HDel(tmpKey, key)
+func (r *RedisStore) Remove(ctx context.Context) {
+	cv := ctx.Value(contextValue).(map[string]interface{})
+	tmpKey := _Cfg.RedisKeyPrefix + cv[contextValueID].(string)
+	r.client.HDel(tmpKey, cv[contextValueKey].(string))
 }
 
-func (r *RedisStore) Clean(id string) {
-	tmpKey := _Cfg.RedisKeyPrefix + id
+func (r *RedisStore) Clean(ctx context.Context) {
+	cv := ctx.Value(contextValue).(map[string]interface{})
+	tmpKey := _Cfg.RedisKeyPrefix + cv[contextValueID].(string)
 	r.client.Del(tmpKey)
 }

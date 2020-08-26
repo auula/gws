@@ -42,12 +42,11 @@ func (m *MemoryStore) Writer(ctx context.Context) error {
 	cv := ctx.Value(contextValue).(map[string]interface{})
 	id := cv[contextValueID].(string)
 
+	// 防止在写的过程中出现 gc回收了之前的id 程序找不到内存抛异常
 	if m.values[id] == nil {
-		// 往gc切片里面添加过期项 方便后面进行gc()
-		gcPut(&garbage{
-			ID:  id,
-			Exp: cv[contextValueExpire].(*time.Time)})
+		m.values[id] = newMSessionItem(id, int(_Cfg.MaxAge))
 	}
+
 	m.values[id].Data[cv[contextValueKey].(string)] = cv[contextValueData]
 
 	//log.Printf("%p",m.values[id])
@@ -82,23 +81,18 @@ func (m *MemoryStore) Clean(ctx context.Context) {
 
 // gc GarbageCollection
 func (m *MemoryStore) gc() {
-	fmt.Println("GC START")
-	var index int
+	// 10 分钟进行一次垃圾收集
 	for {
-		time.Sleep(10 * time.Second)
-		for i, g := range _GarbageList {
-			index = i
-			fmt.Println("GC START 1")
-			fmt.Println(g.ID, g.Exp.UnixNano())
-			if time.Now().UnixNano() >= g.Exp.UnixNano() {
-				fmt.Println("GC START 2")
-				fmt.Println("销毁:", g.ID)
-				delete(m.values, g.ID)
+		time.Sleep(10 * 60 * time.Second)
+		sessions := m.values
+		//if len(sessions) <= MemoryMaxSize/2 {
+		//	continue
+		//}
+		for _, v := range sessions {
+			if time.Now().UnixNano() >= v.Expires.UnixNano() { //超时了
+				fmt.Println("ID:", v.ID, "被GC清理了")
+				delete(m.values, v.ID)
 			}
-		}
-		if len(_GarbageList) > 0 {
-			// 移除垃圾堆里面的session
-			_GarbageList = remove(index, _GarbageList)
 		}
 	}
 }

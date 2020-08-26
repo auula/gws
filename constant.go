@@ -68,7 +68,7 @@ type Config struct {
 
 // DefaultCfg default config
 func DefaultCfg() *Config {
-	return &Config{CookieName: DefaultCookieName, Path: "/", MaxAge: 10, HttpOnly: true, Secure: false}
+	return &Config{CookieName: DefaultCookieName, Path: "/", MaxAge: DefaultMaxAge, HttpOnly: true, Secure: false}
 }
 
 // ReloadCfg reload config
