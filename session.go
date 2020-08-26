@@ -162,8 +162,17 @@ func Ctx(writer http.ResponseWriter, request *http.Request) (Session, error) {
 		}
 		return _Store.(*MemoryStore).values[cookie.Value], nil
 	}
-
-	return nil, nil
+	// 如果没有session数据就重新创建一个
+	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
+		// 重新生成一个cookie 和唯一 sessionID
+		rs := newCookie(writer, cookie)
+		return rs, nil
+	}
+	sid, err := url.QueryUnescape(cookie.Value)
+	if err != nil {
+		return nil, err
+	}
+	return newRSession(sid, int(_Cfg.MaxAge)), nil
 }
 
 // Get get session data by key
