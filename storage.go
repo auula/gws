@@ -12,10 +12,10 @@ import (
 
 // Storage is session store standard
 type Storage interface {
-	Writer(ctx context.Context, key string, data interface{}) error
-	Reader(id, key string) ([]byte, error)
-	Remove(id, key string)
-	Clean(id string)
+	Writer(ctx context.Context) error
+	Reader(ctx context.Context) ([]byte, error)
+	Remove(ctx context.Context)
+	Clean(ctx context.Context)
 }
 
 // 后续版本会更新安全 1.解决了session会话超时时间伪造问题
