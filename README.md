@@ -94,7 +94,7 @@ func get(writer http.ResponseWriter, request *http.Request) {
 	}
 	u := new(User)
 	//Deserialize data into objects
-	session.DeSerialize(bytes, &u)
+	session.DeSerialize(bytes, u)
 	fmt.Fprintln(writer, u)
 }
 
