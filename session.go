@@ -223,11 +223,11 @@ func (ms *MemorySession) Clean(w http.ResponseWriter) {
 	http.SetCookie(w, cookie)
 }
 
-// 检测sessionID是否有效
-func IdNotExist(id string) bool {
-	return _Store.(*RedisStore).client.HGetAll(_Cfg.RedisKeyPrefix+id).Err() == nil
-
-}
+//// 检测sessionID是否有效
+//func IdNotExist(id string) bool {
+//	return _Store.(*RedisStore).client.HGetAll(_Cfg.RedisKeyPrefix+id).Err() == nil
+//
+//}
 
 func newCookie(w http.ResponseWriter, cookie *http.Cookie) (session Session) {
 	// 创建一个cookie
