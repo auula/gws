@@ -3,7 +3,17 @@
 // Author: SDing <deen.job@qq.com>
 // Date: 2020/8/23 - 9:10 PM - UTC/GMT+08:00
 
+
+
+// 目前本库已经实现内存存储和Redis做分布式存储
+// 内存版本使用的是计算机内存 所有可能在运行的时候内存可能会大一点
+// session从第一次请求过来就创建 生命周期根据你自己设置单位秒
+// 每次都是按照生命周期来计算一个session的周期
+// 例如一次30分钟那这个session周期就是30分钟
+// 中途你做了set或者get也没有用和其他session库有一点不一样！！！！
+
 package session
+
 
 import (
 	"context"
@@ -14,6 +24,7 @@ import (
 	"time"
 )
 
+// session unite standard
 type Session interface {
 	Get(key string) ([]byte, error)
 	Set(key string, data interface{}) error
@@ -29,14 +40,14 @@ type MemorySession struct {
 	Data    map[string]interface{} // Save data
 }
 
-// Session for  Memory item
+// Session for redis item
 type RedisSession struct {
 	ID      string     // Unique id
 	Safe    sync.Mutex // Mutex lock
 	Expires time.Time  // Expires time
 }
 
-//实例化
+//实例化 memory session
 func newRSession(id string, maxAge int) *RedisSession {
 	return &RedisSession{
 		ID:      id,
@@ -44,7 +55,7 @@ func newRSession(id string, maxAge int) *RedisSession {
 	}
 }
 
-//实例化 RS
+//实例化 redis session
 func newMSessionItem(id string, maxAge int) *MemorySession {
 	return &MemorySession{
 		Data:    make(map[string]interface{}, maxSize),
