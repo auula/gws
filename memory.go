@@ -24,7 +24,7 @@ type MemoryStore struct {
 func newMemoryStore() *MemoryStore {
 	ms := &MemoryStore{values: make(map[string]*MemorySession, MemoryMaxSize)}
 	//ms.values[""] = make(map[string]interface{},maxSize)
-	_GarbageList = make([]*garbage, 0, MemoryMaxSize)
+	//_GarbageList = make([]*garbage, 0, MemoryMaxSize)
 	go ms.gc()
 	return ms
 }
