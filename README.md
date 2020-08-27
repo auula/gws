@@ -18,11 +18,13 @@
 
 ## Use Example
 
-1. go get package
+> Go version => 1.11
+
+1.Get Package
 
  `go get -u github.com/higker/go-session`
  
-2. Example Code
+2.Example Code
 
 ```go
 package main
@@ -134,5 +136,5 @@ func index(writer http.ResponseWriter, request *http.Request) {
 }
 
  ```
- 3. browser Testing ~  Goodluck😜~
+3.browser Testing ~  Good luck😜~
  > 由于go官方没有提供session的标准库，所以笔者自己写了一个并且开源出来希望你帮助屏幕前需要的你，给个star吧~
