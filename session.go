@@ -110,71 +110,6 @@ func (rs *RedisSession) Clean(w http.ResponseWriter) {
 	http.SetCookie(w, cookie)
 }
 
-// Builder build  session store
-func Builder(store StoreType, conf *Config) error {
-	if conf.MaxAge < DefaultMaxAge {
-		return errors.New("session maxAge no less than 30min")
-	}
-
-	_Cfg = conf
-	switch store {
-	default:
-		return errors.New("build session error, not implement type store")
-	case Memory:
-		_Store = newMemoryStore()
-		_Cfg._st = Memory
-		return nil
-	case Redis:
-		redisStore, err := newRedisStore()
-		if err != nil {
-			return err
-		}
-		_Store = redisStore
-		_Cfg._st = Redis
-		return nil
-	}
-}
-
-// Ctx return request session object
-func Ctx(writer http.ResponseWriter, request *http.Request) (Session, error) {
-
-	// 检测是否有这个session数据
-	// 1.全局session垃圾回收器
-	// 2.请求一过来就进行检测
-	// 3.如果请求的id值在内存存在并且垃圾回收也存在时间也是有效的就说明这个session是有效的
-
-	cookie, err := request.Cookie(_Cfg.CookieName)
-	if _Cfg._st == Memory {
-		if err != nil || len(cookie.Value) <= 0 {
-			item := newCookie(writer, cookie)
-			return item, nil
-		}
-		// 防止浏览器关闭重新打开抛异常
-		sid, err := url.QueryUnescape(cookie.Value)
-		if err != nil {
-			return nil, err
-		}
-		session := _Store.(*MemoryStore).values[sid]
-		if session == nil {
-			item := newCookie(writer, cookie)
-			_Store.(*MemoryStore).values[sid] = item.(*MemorySession)
-			return item, nil
-		}
-		return _Store.(*MemoryStore).values[cookie.Value], nil
-	}
-	// 如果没有session数据就重新创建一个
-	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
-		// 重新生成一个cookie 和唯一 sessionID
-		rs := newCookie(writer, cookie)
-		return rs, nil
-	}
-	sid, err := url.QueryUnescape(cookie.Value)
-	if err != nil {
-		return nil, err
-	}
-	return newRSession(sid, int(_Cfg.MaxAge)), nil
-}
-
 // Get get session data by key
 func (ms *MemorySession) Get(key string) ([]byte, error) {
 	if key == "" || len(key) <= 0 {
@@ -261,4 +196,69 @@ func newCookie(w http.ResponseWriter, cookie *http.Cookie) (session Session) {
 	}
 	session = newRSession(sid, int(_Cfg.MaxAge))
 	return
+}
+
+// Builder build  session store
+func Builder(store StoreType, conf *Config) error {
+	if conf.MaxAge < DefaultMaxAge {
+		return errors.New("session maxAge no less than 30min")
+	}
+
+	_Cfg = conf
+	switch store {
+	default:
+		return errors.New("build session error, not implement type store")
+	case Memory:
+		_Store = newMemoryStore()
+		_Cfg._st = Memory
+		return nil
+	case Redis:
+		redisStore, err := newRedisStore()
+		if err != nil {
+			return err
+		}
+		_Store = redisStore
+		_Cfg._st = Redis
+		return nil
+	}
+}
+
+// Ctx return request session object
+func Ctx(writer http.ResponseWriter, request *http.Request) (Session, error) {
+
+	// 检测是否有这个session数据
+	// 1.全局session垃圾回收器
+	// 2.请求一过来就进行检测
+	// 3.如果请求的id值在内存存在并且垃圾回收也存在时间也是有效的就说明这个session是有效的
+
+	cookie, err := request.Cookie(_Cfg.CookieName)
+	if _Cfg._st == Memory {
+		if err != nil || len(cookie.Value) <= 0 {
+			item := newCookie(writer, cookie)
+			return item, nil
+		}
+		// 防止浏览器关闭重新打开抛异常
+		sid, err := url.QueryUnescape(cookie.Value)
+		if err != nil {
+			return nil, err
+		}
+		session := _Store.(*MemoryStore).values[sid]
+		if session == nil {
+			item := newCookie(writer, cookie)
+			_Store.(*MemoryStore).values[sid] = item.(*MemorySession)
+			return item, nil
+		}
+		return _Store.(*MemoryStore).values[cookie.Value], nil
+	}
+	// 如果没有session数据就重新创建一个
+	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
+		// 重新生成一个cookie 和唯一 sessionID
+		rs := newCookie(writer, cookie)
+		return rs, nil
+	}
+	sid, err := url.QueryUnescape(cookie.Value)
+	if err != nil {
+		return nil, err
+	}
+	return newRSession(sid, int(_Cfg.MaxAge)), nil
 }
