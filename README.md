@@ -52,7 +52,7 @@ func init() {
 		MaxAge:         session.DefaultMaxAge,
 		HttpOnly:       true,
 		Secure:         false,
-		RedisAddr:      "128.199.155.162:6379",
+		RedisAddr:      "127.0.0.1:6379",
 		RedisPassword:  "your password",
 		RedisDB:        0,
 		RedisKeyPrefix: session.RedisPrefix,
