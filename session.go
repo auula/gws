@@ -10,7 +10,6 @@
 // session从第一次请求过来就创建 生命周期根据你自己设置单位秒
 // 每次都是按照生命周期来计算一个session的周期
 // 例如一次30分钟那这个session周期就是30分钟
-// 中途你做了set或者get也没有用和其他session库有一点不一样！！！！
 
 package session
 
