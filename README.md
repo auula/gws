@@ -28,11 +28,11 @@
 
 > Go version => 1.11
 
-1.Get Package
+1. Get Package
 
  `go get -u github.com/higker/go-session`
  
-2.Example Code
+2. Example Code
 
 ```go
 package main
