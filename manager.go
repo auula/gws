@@ -22,10 +22,25 @@
 
 package sessionx
 
-// Storage for session storage interface
-type Storage interface {
-	Reader(id string) ([]byte, error)
-	Create(id string) ([]byte, error)
-	Delete(id string) ([]byte, error)
-	Update(id string) ([]byte, error)
+import "sync"
+
+type storeType uint8
+
+const (
+	// memory store type
+	M storeType = iota
+	// redis store type
+	R
+	SESSION_KEY = "sessionx-id"
+)
+
+// Manager for session manager
+type Manager struct {
+	cfg     *Configs
+	lock    *sync.Mutex
+	session *Session
+}
+
+func New(t storeType, cfg *Configs) {
+
 }

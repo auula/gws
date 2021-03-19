@@ -22,10 +22,13 @@
 
 package sessionx
 
-// Storage for session storage interface
-type Storage interface {
-	Reader(id string) ([]byte, error)
-	Create(id string) ([]byte, error)
-	Delete(id string) ([]byte, error)
-	Update(id string) ([]byte, error)
+import "net/http"
+
+type Configs struct {
+	Cookie         *http.Cookie
+	EncryptedKey   string // sessionID值加密的密钥
+	RedisAddr      string // redis地址
+	RedisPassword  string // redis密码
+	RedisKeyPrefix string // redis键名前缀
+	RedisDB        int    // redis数据库
 }
