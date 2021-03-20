@@ -44,7 +44,7 @@ const (
 // manager for session manager
 type manager struct {
 	cfg   *Configs
-	store Storage
+	store storage
 }
 
 func New(t storeType, cfg *Configs) {
@@ -68,7 +68,7 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	if err != nil ||cookie == nil || len(cookie.Value) <= 0  {
 		return createSession(w, cookie, &session)
 	}
-	if len(cookie.Value) > 16 {
+	if len(cookie.Value) >= 48 {
 		sDec, _ := base64.StdEncoding.DecodeString(cookie.Value)
 		session.ID = string(sDec)
 		reader, err := mgr.store.Reader(&session)
