@@ -1,38 +1,59 @@
 package sessionx
 
 import (
-	"container/list"
-	"errors"
+	"fmt"
+	"runtime"
 	"sync"
 	"time"
 )
 
 type Memory struct {
-	lock     *sync.Mutex
-	sessions map[string]*list.Element
+	sync.Mutex
+	sessions map[string]*Session
 }
 
-type item struct {
-	ID      string
-	Lock    *sync.Mutex
-	Expires time.Time
-	Data    map[string]interface{}
-}
+func (m *Memory) Reader(s *Session) ([]byte, error) {
+	m.Lock()
+	defer m.Unlock()
 
-func (m *Memory) Reader(id string) ([]byte, error) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	if ele, ok := m.sessions[id]; ok {
-		return Encoder(ele.Value.(*item))
+	if ele, ok := m.sessions[s.ID]; ok {
+		return Encoder(ele)
 	}
 
-	return nil, errors.New("id not session data")
+	return nil, fmt.Errorf("id %s not session data", s.ID)
 }
 
-func (m *Memory) Create(id string) ([]byte, error) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (m *Memory) Create(s *Session) ([]byte, error) {
+	m.Lock()
+	defer m.Unlock()
+	value := make(map[string]interface{}, 8)
+	if m.sessions == nil {
+		m.sessions = make(map[string]*Session, 512*runtime.NumCPU())
+	}
+	s.Data = value
+	s.Expires = time.Now().Add(time.Minute * 30)
+	m.sessions[s.ID] = s
+	return Encoder(s)
+}
 
-	return nil, errors.New("id not session data")
+func (m *Memory) Delete(s *Session) error {
+	m.Lock()
+	defer m.Unlock()
+	if _, ok := m.sessions[s.ID]; ok {
+		delete(m.sessions, s.ID)
+		return nil
+	}
+	return fmt.Errorf("id %s not find session", s.ID)
+}
+
+func (m *Memory) Update(s *Session) ([]byte, error) {
+	m.Lock()
+	defer m.Unlock()
+	if ele, ok := m.sessions[s.ID]; ok {
+		ele.Data = s.Data
+		ele.Expires = time.Now().Add(time.Minute * 30)
+		//m.sessions[s.ID] = ele
+		return Encoder(ele)
+	}
+	return nil, fmt.Errorf("id %s updated session fail", s.ID)
 }

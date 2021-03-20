@@ -33,12 +33,21 @@ func (s *Session) Get(key string) (interface{}, error) {
 }
 
 func (s *Session) Set(key string, v interface{}) error {
-
+	if len(key) <= 0 {
+		return fmt.Errorf("key '%s' invalid", key)
+	}
+	s.Data[key] = v
+	if _, err := mgr.store.Update(s); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (s *Session) Remove() {
-
+func (s *Session) Remove(key string) error {
+	if len(key) <= 0 {
+		return fmt.Errorf("key '%s' invalid", key)
+	}
+	return nil
 }
 
 // async code

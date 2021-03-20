@@ -5,4 +5,5 @@ go 1.16
 require (
 	github.com/golang/protobuf v1.5.1 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
+	github.com/higker/collgroup v0.0.3 // indirect
 )

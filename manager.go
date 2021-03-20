@@ -34,11 +34,11 @@ const (
 	SESSION_KEY = "sessionx-id"
 )
 
-// Manager for session manager
-type Manager struct {
-	cfg     *Configs
-	lock    *sync.Mutex
-	session *Session
+// manager for session manager
+type manager struct {
+	cfg   *Configs
+	lock  sync.Mutex
+	store Storage
 }
 
 func New(t storeType, cfg *Configs) {

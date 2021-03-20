@@ -14,11 +14,11 @@ func Encoder(v interface{}) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func Decoder(v []byte, obj interface{}) (interface{}, error) {
+func Decoder(v []byte, obj interface{}) error {
 	reader := bytes.NewReader(v)
 	dec := gob.NewDecoder(reader)
 	if err := dec.Decode(obj); err != nil {
-		return nil, err
+		return err
 	}
-	return obj, nil
+	return nil
 }
