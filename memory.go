@@ -7,12 +7,12 @@ import (
 	"time"
 )
 
-type Memory struct {
+type memory struct {
 	sync.Mutex
 	sessions map[string]*Session
 }
 
-func (m *Memory) Reader(s *Session) ([]byte, error) {
+func (m *memory) Reader(s *Session) ([]byte, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -23,7 +23,7 @@ func (m *Memory) Reader(s *Session) ([]byte, error) {
 	return nil, fmt.Errorf("id %s not session data", s.ID)
 }
 
-func (m *Memory) Create(s *Session) ([]byte, error) {
+func (m *memory) Create(s *Session) ([]byte, error) {
 	m.Lock()
 	defer m.Unlock()
 	value := make(map[string]interface{}, 8)
@@ -36,7 +36,7 @@ func (m *Memory) Create(s *Session) ([]byte, error) {
 	return encoder(s)
 }
 
-func (m *Memory) Delete(s *Session) error {
+func (m *memory) Delete(s *Session) error {
 	m.Lock()
 	defer m.Unlock()
 	if _, ok := m.sessions[s.ID]; ok {
@@ -46,7 +46,7 @@ func (m *Memory) Delete(s *Session) error {
 	return fmt.Errorf("id %s not find session data", s.ID)
 }
 
-func (m *Memory) Remove(s *Session, key string) error {
+func (m *memory) Remove(s *Session, key string) error {
 	m.Lock()
 	defer m.Unlock()
 	if ele, ok := m.sessions[s.ID]; ok {
@@ -56,7 +56,7 @@ func (m *Memory) Remove(s *Session, key string) error {
 	return fmt.Errorf("id %s not find session data", s.ID)
 }
 
-func (m *Memory) Update(s *Session) ([]byte, error) {
+func (m *memory) Update(s *Session) ([]byte, error) {
 	m.Lock()
 	defer m.Unlock()
 	if ele, ok := m.sessions[s.ID]; ok {

@@ -9,7 +9,7 @@ import (
 
 var (
 	cfg = &sessionx.Configs{
-		EncryptedKey: "DING",
+		EncryptedKey: "0123456789012345",
 		Cookie: &http.Cookie{
 			Name: sessionx.SESSION_KEY,
 			Path: "/",

@@ -22,8 +22,8 @@
 
 package sessionx
 
-// Storage for session storage interface
-type Storage interface {
+// session storage interface
+type storage interface {
 	Reader(s *Session) ([]byte, error)
 	Create(s *Session) ([]byte, error)
 	Update(s *Session) ([]byte, error)
