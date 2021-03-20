@@ -23,7 +23,7 @@
 package sessionx
 
 import (
-	"log"
+	"encoding/base64"
 	"net/http"
 	"runtime"
 	"time"
@@ -50,7 +50,7 @@ type manager struct {
 func New(t storeType, cfg *Configs) {
 	switch t {
 	case M:
-		m := new(Memory)
+		m := new(memory)
 		m.sessions = make(map[string]*Session, 512*runtime.NumCPU())
 		mgr = &manager{cfg: cfg, store: m}
 	case R:
@@ -68,17 +68,15 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	if err != nil ||cookie == nil || len(cookie.Value) <= 0  {
 		return createSession(w, cookie, &session)
 	}
-	if len(cookie.Value) > 10 {
-		session.ID = cookie.Value
+	if len(cookie.Value) > 16 {
+		sDec, _ := base64.StdEncoding.DecodeString(cookie.Value)
+		session.ID = string(sDec)
 		reader, err := mgr.store.Reader(&session)
 		if err != nil {
 			return createSession(w, cookie, &session)
 		}
 		_ = decoder(reader, &session)
-		log.Println("2", cookie)
-
 	}
-	log.Println("3", cookie)
 	return &session
 }
 
@@ -86,7 +84,7 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	sessionId := uuid.New().String()
 	cookie = mgr.cfg.Cookie
 	cookie.Expires = time.Now().Add(time.Minute * 30)
-	cookie.Value = sessionId
+	cookie.Value = base64.StdEncoding.EncodeToString([]byte(sessionId))
 	session.ID = sessionId
 	_, _ = mgr.store.Create(session)
 	http.SetCookie(w, cookie)
