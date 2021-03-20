@@ -27,5 +27,6 @@ type Storage interface {
 	Reader(s *Session) ([]byte, error)
 	Create(s *Session) ([]byte, error)
 	Update(s *Session) ([]byte, error)
+	Remove(s *Session, key string) error
 	Delete(s *Session) error
 }

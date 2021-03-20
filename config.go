@@ -26,7 +26,7 @@ import "net/http"
 
 type Configs struct {
 	Cookie         *http.Cookie
-	EncryptedKey   string // sessionID值加密的密钥
+	EncryptedKey   string  // sessionID值加密的密钥
 	RedisAddr      string // redis地址
 	RedisPassword  string // redis密码
 	RedisKeyPrefix string // redis键名前缀

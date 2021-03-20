@@ -17,7 +17,7 @@ func (m *Memory) Reader(s *Session) ([]byte, error) {
 	defer m.Unlock()
 
 	if ele, ok := m.sessions[s.ID]; ok {
-		return Encoder(ele)
+		return encoder(ele)
 	}
 
 	return nil, fmt.Errorf("id %s not session data", s.ID)
@@ -33,7 +33,7 @@ func (m *Memory) Create(s *Session) ([]byte, error) {
 	s.Data = value
 	s.Expires = time.Now().Add(time.Minute * 30)
 	m.sessions[s.ID] = s
-	return Encoder(s)
+	return encoder(s)
 }
 
 func (m *Memory) Delete(s *Session) error {
@@ -43,7 +43,17 @@ func (m *Memory) Delete(s *Session) error {
 		delete(m.sessions, s.ID)
 		return nil
 	}
-	return fmt.Errorf("id %s not find session", s.ID)
+	return fmt.Errorf("id %s not find session data", s.ID)
+}
+
+func (m *Memory) Remove(s *Session, key string) error {
+	m.Lock()
+	defer m.Unlock()
+	if ele, ok := m.sessions[s.ID]; ok {
+		delete(ele.Data, key)
+		return nil
+	}
+	return fmt.Errorf("id %s not find session data", s.ID)
 }
 
 func (m *Memory) Update(s *Session) ([]byte, error) {
@@ -53,7 +63,7 @@ func (m *Memory) Update(s *Session) ([]byte, error) {
 		ele.Data = s.Data
 		ele.Expires = time.Now().Add(time.Minute * 30)
 		//m.sessions[s.ID] = ele
-		return Encoder(ele)
+		return encoder(ele)
 	}
 	return nil, fmt.Errorf("id %s updated session fail", s.ID)
 }

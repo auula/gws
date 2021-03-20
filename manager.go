@@ -22,7 +22,14 @@
 
 package sessionx
 
-import "sync"
+import (
+	"log"
+	"net/http"
+	"runtime"
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type storeType uint8
 
@@ -37,10 +44,51 @@ const (
 // manager for session manager
 type manager struct {
 	cfg   *Configs
-	lock  sync.Mutex
 	store Storage
 }
 
 func New(t storeType, cfg *Configs) {
+	switch t {
+	case M:
+		m := new(Memory)
+		m.sessions = make(map[string]*Session, 512*runtime.NumCPU())
+		mgr = &manager{cfg: cfg, store: m}
+	case R:
+		panic("not impl store type")
+	default:
+		panic("not impl store type")
+	}
+}
 
+func Handler(w http.ResponseWriter, req *http.Request) *Session {
+	mux.Lock()
+	defer mux.Unlock()
+	var session Session
+	cookie, err := req.Cookie(mgr.cfg.Cookie.Name)
+	if err != nil ||cookie == nil || len(cookie.Value) <= 0  {
+		return createSession(w, cookie, &session)
+	}
+	if len(cookie.Value) > 10 {
+		session.ID = cookie.Value
+		reader, err := mgr.store.Reader(&session)
+		if err != nil {
+			return createSession(w, cookie, &session)
+		}
+		_ = decoder(reader, &session)
+		log.Println("2", cookie)
+
+	}
+	log.Println("3", cookie)
+	return &session
+}
+
+func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) *Session {
+	sessionId := uuid.New().String()
+	cookie = mgr.cfg.Cookie
+	cookie.Expires = time.Now().Add(time.Minute * 30)
+	cookie.Value = sessionId
+	session.ID = sessionId
+	_, _ = mgr.store.Create(session)
+	http.SetCookie(w, cookie)
+	return session
 }

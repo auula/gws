@@ -5,19 +5,19 @@ import (
 	"encoding/gob"
 )
 
-func Encoder(v interface{}) ([]byte, error) {
+func encoder(s *Session) ([]byte, error) {
 	var buffer bytes.Buffer
-	ecoder := gob.NewEncoder(&buffer)
-	if err := ecoder.Encode(v); err != nil {
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(s); err != nil {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
 }
 
-func Decoder(v []byte, obj interface{}) error {
+func decoder(v []byte, s *Session) error {
 	reader := bytes.NewReader(v)
 	dec := gob.NewDecoder(reader)
-	if err := dec.Decode(obj); err != nil {
+	if err := dec.Decode(s); err != nil {
 		return err
 	}
 	return nil

@@ -25,18 +25,23 @@ func (s *Session) Get(key string) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	Decoder(bytes, s)
+	_ = decoder(bytes, s)
 	if ele, ok := s.Data[key]; ok {
 		return ele, nil
 	}
-	return nil, fmt.Errorf("key '%s' does not exits", key)
+	return nil, fmt.Errorf("key '%s' does not exist", key)
 }
 
 func (s *Session) Set(key string, v interface{}) error {
 	if len(key) <= 0 {
 		return fmt.Errorf("key '%s' invalid", key)
 	}
+	mux.Lock()
+	if s.Data == nil{
+		s.Data = make(map[string]interface{}, 8)
+	}
 	s.Data[key] = v
+	mux.Unlock()
 	if _, err := mgr.store.Update(s); err != nil {
 		return err
 	}
@@ -46,6 +51,16 @@ func (s *Session) Set(key string, v interface{}) error {
 func (s *Session) Remove(key string) error {
 	if len(key) <= 0 {
 		return fmt.Errorf("key '%s' invalid", key)
+	}
+	if err := mgr.store.Remove(s, key); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Session) Clean() error {
+	if err := mgr.store.Delete(s); err != nil {
+		return err
 	}
 	return nil
 }
