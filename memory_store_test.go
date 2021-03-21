@@ -6,7 +6,7 @@ import (
 )
 
 func TestCreate(t *testing.T) {
-	m := new(memory)
+	m := new(memoryStore)
 	s := new(Session)
 	s.ID = "20210320"
 	m.Create(s)
@@ -14,7 +14,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestReader(t *testing.T) {
-	m := new(memory)
+	m := new(memoryStore)
 	s := new(Session)
 	s.ID = "20210320"
 	m.Create(s)
@@ -22,12 +22,12 @@ func TestReader(t *testing.T) {
 	if err != nil {
 		t.Error(err.Error())
 	}
-	Decoder(bytes, s)
+	decoder(bytes, s)
 	t.Log("session = ", s)
 }
 
 func TestDelete(t *testing.T) {
-	m := new(memory)
+	m := new(memoryStore)
 	s := new(Session)
 	s.ID = "20210320"
 	m.Create(s)
@@ -41,7 +41,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestUpdated(t *testing.T) {
-	m := new(memory)
+	m := new(memoryStore)
 	s := new(Session)
 	s.ID = "20210320"
 	m.Create(s)
@@ -53,7 +53,7 @@ func TestUpdated(t *testing.T) {
 	if err != nil {
 		t.Error(err.Error())
 	}
-	Decoder(bytes, s)
+	decoder(bytes, s)
 	t.Log("session = ", s)
 
 }

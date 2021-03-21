@@ -23,16 +23,31 @@
 package sessionx
 
 import (
-	"net/http"
-	"time"
+	"context"
+	"fmt"
+	"github.com/go-redis/redis/v8"
+	"sync"
 )
 
-type Configs struct {
-	Cookie          *http.Cookie
-	EncryptedKey    string        // sessionID值加密的密钥
-	RedisAddr       string        // redis地址
-	RedisPassword   string        // redis密码
-	RedisKeyPrefix  string        // redis键名前缀
-	RedisDB         int           // redis数据库
-	SessionLifeTime time.Duration // 会话在无操作情况下的生命周期
+var ()
+
+type redisStore struct {
+	ctx context.Context
+	sync.Mutex
+	sessions *redis.Client
+	cancel   context.CancelFunc
+}
+
+func (rs *redisStore) Reader(s *Session) ([]byte, error) {
+	rs.Lock()
+	defer rs.Unlock()
+	bytes, err := rs.sessions.Get(rs.ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Bytes()
+	if err != nil {
+		return nil, err
+	}
+	err = decoder(bytes, s)
+	if err != nil {
+		return nil, err
+	}
+	return encoder(s)
 }

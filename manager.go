@@ -34,7 +34,7 @@ import (
 type storeType uint8
 
 const (
-	// memory store type
+	// memoryStore store type
 	M storeType = iota
 	// redis store type
 	R
@@ -50,8 +50,9 @@ type manager struct {
 func New(t storeType, cfg *Configs) {
 	switch t {
 	case M:
-		m := new(memory)
+		m := new(memoryStore)
 		m.sessions = make(map[string]*Session, 512*runtime.NumCPU())
+		go m.GC()
 		mgr = &manager{cfg: cfg, store: m}
 	case R:
 		panic("not impl store type")
@@ -65,7 +66,7 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	defer mux.Unlock()
 	var session Session
 	cookie, err := req.Cookie(mgr.cfg.Cookie.Name)
-	if err != nil ||cookie == nil || len(cookie.Value) <= 0  {
+	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
 		return createSession(w, cookie, &session)
 	}
 	if len(cookie.Value) >= 48 {
@@ -83,7 +84,7 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) *Session {
 	sessionId := uuid.New().String()
 	cookie = mgr.cfg.Cookie
-	cookie.Expires = time.Now().Add(time.Minute * 30)
+	cookie.Expires = time.Now().Add(mgr.cfg.SessionLifeTime)
 	cookie.Value = base64.StdEncoding.EncodeToString([]byte(sessionId))
 	session.ID = sessionId
 	_, _ = mgr.store.Create(session)
