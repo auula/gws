@@ -83,10 +83,16 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) *Session {
 	sessionId := uuid.New().String()
+	expireTime := time.Now().Add(mgr.cfg.SessionLifeTime)
+
+	// init cookie parameter
 	cookie = mgr.cfg.Cookie
-	cookie.Expires = time.Now().Add(mgr.cfg.SessionLifeTime)
+	cookie.Expires = expireTime
 	cookie.Value = base64.StdEncoding.EncodeToString([]byte(sessionId))
+
+	// init session parameter
 	session.ID = sessionId
+	session.Expires = expireTime
 	_, _ = mgr.store.Create(session)
 	http.SetCookie(w, cookie)
 	return session

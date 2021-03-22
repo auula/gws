@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"sync"
+	"time"
 )
 
 var ()
@@ -50,4 +51,47 @@ func (rs *redisStore) Reader(s *Session) ([]byte, error) {
 		return nil, err
 	}
 	return encoder(s)
+}
+
+func (rs *redisStore) Create(s *Session) ([]byte, error) {
+	rs.Lock()
+	defer rs.Unlock()
+	if s.Data == nil {
+		s.Data = make(map[string]interface{}, 8)
+	}
+	return rs.setValue(s)
+}
+
+func (rs *redisStore) Update(s *Session) ([]byte, error) {
+	rs.Lock()
+	defer rs.Unlock()
+	s.Expires = time.Now().Add(mgr.cfg.SessionLifeTime)
+	return rs.setValue(s)
+}
+
+func (rs *redisStore) Remove(s *Session, key string) error {
+	rs.Lock()
+	defer rs.Unlock()
+	s.Expires = time.Now().Add(mgr.cfg.SessionLifeTime)
+	// delete it form memory
+	if _, ok := s.Data[key]; ok {
+		delete(s.Data, key)
+	}
+	_, err := rs.setValue(s)
+	return err
+}
+
+func (rs *redisStore) Delete(s *Session) error {
+	rs.Lock()
+	defer rs.Unlock()
+	return rs.sessions.Del(rs.ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Err()
+}
+
+func (rs *redisStore) setValue(s *Session) ([]byte, error) {
+	bytes, err := encoder(s)
+	if err != nil {
+		return nil, err
+	}
+	err = rs.sessions.Set(rs.ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, -1).Err()
+	return nil, err
 }

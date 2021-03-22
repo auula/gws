@@ -48,12 +48,12 @@ func (m *memoryStore) Reader(s *Session) ([]byte, error) {
 func (m *memoryStore) Create(s *Session) ([]byte, error) {
 	m.Lock()
 	defer m.Unlock()
-	value := make(map[string]interface{}, 8)
 	if m.sessions == nil {
 		m.sessions = make(map[string]*Session, 512*runtime.NumCPU())
 	}
-	s.Data = value
-	s.Expires = time.Now().Add(mgr.cfg.SessionLifeTime)
+	if s.Data == nil {
+		s.Data = make(map[string]interface{}, 8)
+	}
 	m.sessions[s.ID] = s
 	return encoder(s)
 }
