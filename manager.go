@@ -24,6 +24,7 @@ package sessionx
 
 import (
 	"encoding/base64"
+	"github.com/go-redis/redis/v8"
 	"net/http"
 	"runtime"
 	"time"
@@ -38,7 +39,7 @@ const (
 	M storeType = iota
 	// redis store type
 	R
-	SESSION_KEY = "sessionx-id"
+	SessionKey = "session-id"
 )
 
 // manager for session manager
@@ -55,7 +56,14 @@ func New(t storeType, cfg *Configs) {
 		go m.GC()
 		mgr = &manager{cfg: cfg, store: m}
 	case R:
-		panic("not impl store type")
+		r := new(redisStore)
+		r.sessions = redis.NewClient(&redis.Options{
+			Addr:     cfg.RedisAddr,
+			Password: cfg.RedisPassword, // no password set
+			DB:       cfg.RedisDB,       // use default DB
+			PoolSize: 100,               // 连接池大小
+		})
+		mgr = &manager{cfg: cfg, store: r}
 	default:
 		panic("not impl store type")
 	}
@@ -72,11 +80,9 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	if len(cookie.Value) >= 48 {
 		sDec, _ := base64.StdEncoding.DecodeString(cookie.Value)
 		session.ID = string(sDec)
-		reader, err := mgr.store.Reader(&session)
-		if err != nil {
+		if mgr.store.Reader(&session) != nil {
 			return createSession(w, cookie, &session)
 		}
-		_ = decoder(reader, &session)
 	}
 	return &session
 }
@@ -93,7 +99,7 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	// init session parameter
 	session.ID = sessionId
 	session.Expires = expireTime
-	_, _ = mgr.store.Create(session)
+	_ = mgr.store.Create(session)
 	http.SetCookie(w, cookie)
 	return session
 }

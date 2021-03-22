@@ -26,34 +26,32 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"log"
 	"sync"
 	"time"
 )
 
-var ()
-
 type redisStore struct {
-	ctx context.Context
 	sync.Mutex
 	sessions *redis.Client
-	cancel   context.CancelFunc
 }
 
-func (rs *redisStore) Reader(s *Session) ([]byte, error) {
+func (rs *redisStore) Reader(s *Session) error {
 	rs.Lock()
 	defer rs.Unlock()
-	bytes, err := rs.sessions.Get(rs.ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Bytes()
+	bytes, err := rs.sessions.Get(context.Background(), fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Bytes()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = decoder(bytes, s)
+	log.Println("reader byte:", s)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return encoder(s)
+	return nil
 }
 
-func (rs *redisStore) Create(s *Session) ([]byte, error) {
+func (rs *redisStore) Create(s *Session) error {
 	rs.Lock()
 	defer rs.Unlock()
 	if s.Data == nil {
@@ -62,10 +60,13 @@ func (rs *redisStore) Create(s *Session) ([]byte, error) {
 	return rs.setValue(s)
 }
 
-func (rs *redisStore) Update(s *Session) ([]byte, error) {
+func (rs *redisStore) Update(s *Session) error {
 	rs.Lock()
 	defer rs.Unlock()
 	s.Expires = time.Now().Add(mgr.cfg.SessionLifeTime)
+	if s.Data == nil {
+		s.Data = make(map[string]interface{}, 8)
+	}
 	return rs.setValue(s)
 }
 
@@ -77,21 +78,20 @@ func (rs *redisStore) Remove(s *Session, key string) error {
 	if _, ok := s.Data[key]; ok {
 		delete(s.Data, key)
 	}
-	_, err := rs.setValue(s)
-	return err
+	return rs.setValue(s)
 }
 
 func (rs *redisStore) Delete(s *Session) error {
 	rs.Lock()
 	defer rs.Unlock()
-	return rs.sessions.Del(rs.ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Err()
+	return rs.sessions.Del(context.Background(), fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Err()
 }
 
-func (rs *redisStore) setValue(s *Session) ([]byte, error) {
+func (rs *redisStore) setValue(s *Session) error {
 	bytes, err := encoder(s)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	err = rs.sessions.Set(rs.ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, -1).Err()
-	return nil, err
+	err = rs.sessions.Set(context.Background(), fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, 100*time.Second).Err()
+	return err
 }

@@ -34,18 +34,20 @@ type memoryStore struct {
 	sessions map[string]*Session
 }
 
-func (m *memoryStore) Reader(s *Session) ([]byte, error) {
+func (m *memoryStore) Reader(s *Session) error {
 	m.Lock()
 	defer m.Unlock()
 
 	if ele, ok := m.sessions[s.ID]; ok {
-		return encoder(ele)
+		// 严重bug 这个不能直接 s = ele 因为有map地址
+		s.Data = ele.Data
+		return nil
 	}
 
-	return nil, fmt.Errorf("id %s not session data", s.ID)
+	return fmt.Errorf("id %s not session data", s.ID)
 }
 
-func (m *memoryStore) Create(s *Session) ([]byte, error) {
+func (m *memoryStore) Create(s *Session) error {
 	m.Lock()
 	defer m.Unlock()
 	if m.sessions == nil {
@@ -55,7 +57,7 @@ func (m *memoryStore) Create(s *Session) ([]byte, error) {
 		s.Data = make(map[string]interface{}, 8)
 	}
 	m.sessions[s.ID] = s
-	return encoder(s)
+	return nil
 }
 
 func (m *memoryStore) Delete(s *Session) error {
@@ -78,16 +80,16 @@ func (m *memoryStore) Remove(s *Session, key string) error {
 	return fmt.Errorf("id %s not find session data", s.ID)
 }
 
-func (m *memoryStore) Update(s *Session) ([]byte, error) {
+func (m *memoryStore) Update(s *Session) error {
 	m.Lock()
 	defer m.Unlock()
 	if ele, ok := m.sessions[s.ID]; ok {
 		ele.Data = s.Data
 		ele.Expires = time.Now().Add(mgr.cfg.SessionLifeTime)
 		//m.sessions[s.ID] = ele
-		return encoder(ele)
+		return nil
 	}
-	return nil, fmt.Errorf("id %s updated session fail", s.ID)
+	return fmt.Errorf("id %s updated session fail", s.ID)
 }
 
 func (m *memoryStore) GC() {

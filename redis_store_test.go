@@ -15,11 +15,6 @@ func Test_redisStore(t *testing.T) {
 		DB:       0,             // use default DB
 		PoolSize: 100,           // 连接池大小
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	result, err := rdb.Ping(ctx).Result()
-	t.Log(result, err)
 
 	s := new(Session)
 	id := uuid.New().String()
@@ -31,13 +26,13 @@ func Test_redisStore(t *testing.T) {
 	if err != nil {
 		t.Log(err)
 	}
-	rdb.Set(ctx, id, bytes, time.Second*10)
+	rdb.Set(context.Background(), id, bytes, time.Second*10)
 
 	s2 := new(Session)
-	b, err := rdb.Get(ctx, id).Bytes()
+	b, err := rdb.Get(context.Background(), id).Bytes()
 	if err != nil {
 		t.Log(err)
 	}
-	decoder(b, s2)
+	_ = decoder(b, s2)
 	t.Log(s2)
 }

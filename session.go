@@ -40,15 +40,10 @@ type Session struct {
 }
 
 func (s *Session) Get(key string) (interface{}, error) {
-
-	if len(key) <= 0 {
-		return nil, fmt.Errorf("key '%s' invalid", key)
-	}
-	bytes, err := mgr.store.Reader(s)
+	err := mgr.store.Reader(s)
 	if err != nil {
 		return nil, err
 	}
-	_ = decoder(bytes, s)
 	if ele, ok := s.Data[key]; ok {
 		return ele, nil
 	}
@@ -56,34 +51,21 @@ func (s *Session) Get(key string) (interface{}, error) {
 }
 
 func (s *Session) Set(key string, v interface{}) error {
-	if len(key) <= 0 {
-		return fmt.Errorf("key '%s' invalid", key)
-	}
 	mux.Lock()
 	if s.Data == nil {
 		s.Data = make(map[string]interface{}, 8)
 	}
 	s.Data[key] = v
 	mux.Unlock()
-	if _, err := mgr.store.Update(s); err != nil {
-		return err
-	}
-	return nil
+	return mgr.store.Update(s)
 }
 
 func (s *Session) Remove(key string) error {
-
-	if err := mgr.store.Remove(s, key); err != nil {
-		return err
-	}
-	return nil
+	return mgr.store.Remove(s, key)
 }
 
 func (s *Session) Clean() error {
-	if err := mgr.store.Delete(s); err != nil {
-		return err
-	}
-	return nil
+	return mgr.store.Delete(s)
 }
 
 // async code
