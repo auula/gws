@@ -27,12 +27,23 @@ import (
 	"time"
 )
 
+// Configs session option
 type Configs struct {
-	Cookie          *http.Cookie
-	EncryptedKey    string        // sessionID值加密的密钥
-	RedisAddr       string        // redis地址
-	RedisPassword   string        // redis密码
-	RedisKeyPrefix  string        // redis键名前缀
-	RedisDB         int           // redis数据库
-	SessionLifeTime time.Duration // 会话在无操作情况下的生命周期
+	Cookie *http.Cookie
+
+	// sessionID value encryption key
+	//EncryptedKey string `json:"encrypted_key" validate:"required,len=16"`
+
+	// redis server ip
+	RedisAddr string `json:"redis_addr" validate:"required"`
+	// redis auth password
+	RedisPassword string `json:"redis_password" validate:"required"`
+	// redis key prefix
+	RedisKeyPrefix string `json:"redis_key_prefix" validate:"required"`
+	// redis db
+	RedisDB int `json:"redis_db" validate:"gte=0,lte=15"`
+	// the life cycle of a session without operations
+	TimeOut time.Duration `json:"time_out" validate:"required"`
+	// connection pool size
+	PoolSize uint8 `json:"pool_size" validate:"gte=5,lte=100"`
 }

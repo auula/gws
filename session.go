@@ -23,7 +23,10 @@
 package sessionx
 
 import (
+	"encoding/base64"
 	"fmt"
+	"github.com/google/uuid"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -37,10 +40,12 @@ type Session struct {
 	ID      string
 	Expires time.Time
 	Data    map[string]interface{}
+	_w      http.ResponseWriter
 }
 
 func (s *Session) Get(key string) (interface{}, error) {
 	err := mgr.store.Reader(s)
+	s.refreshCookie()
 	if err != nil {
 		return nil, err
 	}
@@ -57,15 +62,58 @@ func (s *Session) Set(key string, v interface{}) error {
 	}
 	s.Data[key] = v
 	mux.Unlock()
+	s.refreshCookie()
 	return mgr.store.Update(s)
 }
 
 func (s *Session) Remove(key string) error {
+	s.refreshCookie()
 	return mgr.store.Remove(s, key)
 }
 
 func (s *Session) Clean() error {
 	return mgr.store.Delete(s)
+}
+
+func Handler(w http.ResponseWriter, req *http.Request) *Session {
+	mux.Lock()
+	defer mux.Unlock()
+	var session Session
+	session._w = w
+	cookie, err := req.Cookie(mgr.cfg.Cookie.Name)
+	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
+		return createSession(w, cookie, &session)
+	}
+	if len(cookie.Value) >= 48 {
+		sDec, _ := base64.StdEncoding.DecodeString(cookie.Value)
+		session.ID = string(sDec)
+		if mgr.store.Reader(&session) != nil {
+			return createSession(w, cookie, &session)
+		}
+	}
+	return &session
+}
+
+func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) *Session {
+	sessionId := uuid.New().String()
+	expireTime := time.Now().Add(mgr.cfg.TimeOut)
+
+	// init cookie parameter
+	cookie = mgr.cfg.Cookie
+	cookie.Expires = expireTime
+	cookie.Value = base64.StdEncoding.EncodeToString([]byte(sessionId))
+
+	// init session parameter
+	session.ID = sessionId
+	session.Expires = expireTime
+	_ = mgr.store.Create(session)
+	http.SetCookie(w, cookie)
+	return session
+}
+
+func (s *Session) refreshCookie() {
+	mgr.cfg.Cookie.Expires = time.Now().Add(mgr.cfg.TimeOut)
+	http.SetCookie(s._w, mgr.cfg.Cookie)
 }
 
 // async code

@@ -39,12 +39,12 @@ func (m *memoryStore) Reader(s *Session) error {
 	defer m.Unlock()
 
 	if ele, ok := m.sessions[s.ID]; ok {
-		// 严重bug 这个不能直接 s = ele 因为有map地址
+		// bug 这个不能直接 s = ele 因为有map地址
 		s.Data = ele.Data
 		return nil
 	}
 
-	return fmt.Errorf("id %s not session data", s.ID)
+	return fmt.Errorf("id `%s` not exist session data", s.ID)
 }
 
 func (m *memoryStore) Create(s *Session) error {
@@ -67,7 +67,7 @@ func (m *memoryStore) Delete(s *Session) error {
 		delete(m.sessions, s.ID)
 		return nil
 	}
-	return fmt.Errorf("id %s not find session data", s.ID)
+	return fmt.Errorf("id `%s` not find session data", s.ID)
 }
 
 func (m *memoryStore) Remove(s *Session, key string) error {
@@ -77,7 +77,7 @@ func (m *memoryStore) Remove(s *Session, key string) error {
 		delete(ele.Data, key)
 		return nil
 	}
-	return fmt.Errorf("id %s not find session data", s.ID)
+	return fmt.Errorf("id `%s` not find session data", s.ID)
 }
 
 func (m *memoryStore) Update(s *Session) error {
@@ -85,17 +85,17 @@ func (m *memoryStore) Update(s *Session) error {
 	defer m.Unlock()
 	if ele, ok := m.sessions[s.ID]; ok {
 		ele.Data = s.Data
-		ele.Expires = time.Now().Add(mgr.cfg.SessionLifeTime)
+		ele.Expires = time.Now().Add(mgr.cfg.TimeOut)
 		//m.sessions[s.ID] = ele
 		return nil
 	}
-	return fmt.Errorf("id %s updated session fail", s.ID)
+	return fmt.Errorf("id `%s` updated session fail", s.ID)
 }
 
-func (m *memoryStore) GC() {
+func (m *memoryStore) gc() {
 	// recycle your trash every 10 minutes
 	for {
-		time.Sleep(time.Minute)
+		time.Sleep(time.Minute * 10)
 		m.Lock()
 		for s, session := range m.sessions {
 			if time.Now().UnixNano() >= session.Expires.UnixNano() {
