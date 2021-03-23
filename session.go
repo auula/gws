@@ -43,6 +43,7 @@ type Session struct {
 	_w      http.ResponseWriter
 }
 
+// Get Retrieves the stored element data from the session via the key
 func (s *Session) Get(key string) (interface{}, error) {
 	err := mgr.store.Reader(s)
 	s.refreshCookie()
@@ -55,6 +56,7 @@ func (s *Session) Get(key string) (interface{}, error) {
 	return nil, fmt.Errorf("key '%s' does not exist", key)
 }
 
+// Set Stores information in the session
 func (s *Session) Set(key string, v interface{}) error {
 	mux.Lock()
 	if s.Data == nil {
@@ -66,24 +68,31 @@ func (s *Session) Set(key string, v interface{}) error {
 	return mgr.store.Update(s)
 }
 
+// Remove an element stored in the session
 func (s *Session) Remove(key string) error {
 	s.refreshCookie()
 	return mgr.store.Remove(s, key)
 }
 
+// Clean up all data for this session
 func (s *Session) Clean() error {
 	return mgr.store.Delete(s)
 }
 
+// Handler Get session data from the Request
 func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	mux.Lock()
 	defer mux.Unlock()
+
+	// 从请求里面取session
 	var session Session
 	session._w = w
 	cookie, err := req.Cookie(mgr.cfg.Cookie.Name)
 	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
 		return createSession(w, cookie, &session)
 	}
+
+	// ID通过编码之后长度是48位
 	if len(cookie.Value) >= 48 {
 		sDec, _ := base64.StdEncoding.DecodeString(cookie.Value)
 		session.ID = string(sDec)
@@ -111,33 +120,8 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	return session
 }
 
+// 刷新cookie 会话只要有操作就重置会话生命周期
 func (s *Session) refreshCookie() {
 	mgr.cfg.Cookie.Expires = time.Now().Add(mgr.cfg.TimeOut)
 	http.SetCookie(s._w, mgr.cfg.Cookie)
 }
-
-// async code
-
-// type Session struct {
-// 	ID      string
-// 	Expires time.Time
-// 	Data    map[string]interface{}
-// 	// 错误一次性收集
-// 	tasks []task
-// 	collgroup.Group
-// }
-
-// func (s *Session) Get(key string) interface{} {
-// 	s.tasks = append(s.tasks, func() error {
-// 		bytes, err := mgr.store.Reader(s)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		Decoder(bytes, s)
-// 		return nil
-// 	})
-// 	if ele, ok := s.Data[key]; ok {
-// 		return ele
-// 	}
-// 	return nil
-// }
