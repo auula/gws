@@ -26,7 +26,7 @@ var (
 )
 
 func main() {
-	sessionx.New(sessionx.M, cfg)
+	sessionx.New(sessionx.R, cfg)
 	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
 		_ = session.Set("K", time.Now().Format("2006 01-02 15:04:05"))

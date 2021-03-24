@@ -25,25 +25,31 @@ package sessionx
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
 	"sync"
 	"time"
+
+	"github.com/go-redis/redis/v8"
 )
 
 var (
 	ctx = context.Background()
 )
 
+// 关闭之后 redis有数据  但是获取2次就没有数据了
 type redisStore struct {
 	sync.Mutex
 	sessions *redis.Client
 }
 
 func (rs *redisStore) Reader(s *Session) error {
+	sid := fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)
 	rs.Lock()
 	defer rs.Unlock()
-	bytes, err := rs.sessions.Get(ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Bytes()
+	bytes, err := rs.sessions.Get(ctx, sid).Bytes()
 	if err != nil {
+		return err
+	}
+	if err := rs.sessions.Expire(ctx, sid, mgr.cfg.TimeOut).Err(); err != nil {
 		return err
 	}
 	err = decoder(bytes, s)
@@ -94,6 +100,6 @@ func (rs *redisStore) setValue(s *Session) error {
 	if err != nil {
 		return err
 	}
-	err = rs.sessions.Set(ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, 100*time.Second).Err()
+	err = rs.sessions.Set(ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, mgr.cfg.TimeOut).Err()
 	return err
 }
