@@ -25,26 +25,34 @@ package sessionx
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
-	"log"
 	"sync"
 	"time"
+
+	"github.com/go-redis/redis/v8"
 )
 
+var (
+	ctx = context.Background()
+)
+
+// 关闭之后 redis有数据  但是获取2次就没有数据了
 type redisStore struct {
 	sync.Mutex
 	sessions *redis.Client
 }
 
 func (rs *redisStore) Reader(s *Session) error {
+	sid := fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)
 	rs.Lock()
 	defer rs.Unlock()
-	bytes, err := rs.sessions.Get(context.Background(), fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Bytes()
+	bytes, err := rs.sessions.Get(ctx, sid).Bytes()
 	if err != nil {
 		return err
 	}
+	if err := rs.sessions.Expire(ctx, sid, mgr.cfg.TimeOut).Err(); err != nil {
+		return err
+	}
 	err = decoder(bytes, s)
-	log.Println("reader byte:", s)
 	if err != nil {
 		return err
 	}
@@ -63,7 +71,7 @@ func (rs *redisStore) Create(s *Session) error {
 func (rs *redisStore) Update(s *Session) error {
 	rs.Lock()
 	defer rs.Unlock()
-	s.Expires = time.Now().Add(mgr.cfg.SessionLifeTime)
+	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
 	if s.Data == nil {
 		s.Data = make(map[string]interface{}, 8)
 	}
@@ -73,7 +81,7 @@ func (rs *redisStore) Update(s *Session) error {
 func (rs *redisStore) Remove(s *Session, key string) error {
 	rs.Lock()
 	defer rs.Unlock()
-	s.Expires = time.Now().Add(mgr.cfg.SessionLifeTime)
+	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
 	// delete it form memory
 	if _, ok := s.Data[key]; ok {
 		delete(s.Data, key)
@@ -84,7 +92,7 @@ func (rs *redisStore) Remove(s *Session, key string) error {
 func (rs *redisStore) Delete(s *Session) error {
 	rs.Lock()
 	defer rs.Unlock()
-	return rs.sessions.Del(context.Background(), fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Err()
+	return rs.sessions.Del(ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Err()
 }
 
 func (rs *redisStore) setValue(s *Session) error {
@@ -92,6 +100,6 @@ func (rs *redisStore) setValue(s *Session) error {
 	if err != nil {
 		return err
 	}
-	err = rs.sessions.Set(context.Background(), fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, 100*time.Second).Err()
+	err = rs.sessions.Set(ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, mgr.cfg.TimeOut).Err()
 	return err
 }

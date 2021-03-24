@@ -23,13 +23,11 @@
 package sessionx
 
 import (
-	"encoding/base64"
+	"context"
+	"github.com/go-playground/validator/v10"
 	"github.com/go-redis/redis/v8"
-	"net/http"
 	"runtime"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type storeType uint8
@@ -49,57 +47,42 @@ type manager struct {
 }
 
 func New(t storeType, cfg *Configs) {
+
 	switch t {
 	case M:
+
+		// init memory storage
 		m := new(memoryStore)
 		m.sessions = make(map[string]*Session, 512*runtime.NumCPU())
-		go m.GC()
+		go m.gc()
 		mgr = &manager{cfg: cfg, store: m}
+
 	case R:
+
+		// parameter verify
+		validate := validator.New()
+		if err := validate.Struct(cfg); err != nil {
+			panic(err.Error())
+		}
+
+		// init redis storage
 		r := new(redisStore)
 		r.sessions = redis.NewClient(&redis.Options{
 			Addr:     cfg.RedisAddr,
 			Password: cfg.RedisPassword, // no password set
 			DB:       cfg.RedisDB,       // use default DB
-			PoolSize: 100,               // 连接池大小
+			PoolSize: int(cfg.PoolSize), // connection pool size
 		})
-		mgr = &manager{cfg: cfg, store: r}
-	default:
-		panic("not impl store type")
-	}
-}
 
-func Handler(w http.ResponseWriter, req *http.Request) *Session {
-	mux.Lock()
-	defer mux.Unlock()
-	var session Session
-	cookie, err := req.Cookie(mgr.cfg.Cookie.Name)
-	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
-		return createSession(w, cookie, &session)
-	}
-	if len(cookie.Value) >= 48 {
-		sDec, _ := base64.StdEncoding.DecodeString(cookie.Value)
-		session.ID = string(sDec)
-		if mgr.store.Reader(&session) != nil {
-			return createSession(w, cookie, &session)
+		// test connection
+		timeout, cancelFunc := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancelFunc()
+		if err := r.sessions.Ping(timeout).Err(); err != nil {
+			panic(err.Error())
 		}
+		mgr = &manager{cfg: cfg, store: r}
+
+	default:
+		panic("not implement store type")
 	}
-	return &session
-}
-
-func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) *Session {
-	sessionId := uuid.New().String()
-	expireTime := time.Now().Add(mgr.cfg.SessionLifeTime)
-
-	// init cookie parameter
-	cookie = mgr.cfg.Cookie
-	cookie.Expires = expireTime
-	cookie.Value = base64.StdEncoding.EncodeToString([]byte(sessionId))
-
-	// init session parameter
-	session.ID = sessionId
-	session.Expires = expireTime
-	_ = mgr.store.Create(session)
-	http.SetCookie(w, cookie)
-	return session
 }
