@@ -25,6 +25,7 @@ package sessionx
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -52,10 +53,10 @@ func (rs *redisStore) Reader(s *Session) error {
 	if err := rs.sessions.Expire(ctx, sid, mgr.cfg.TimeOut).Err(); err != nil {
 		return err
 	}
-	err = decoder(bytes, s)
-	if err != nil {
+	if err := decoder(bytes, s); err != nil {
 		return err
 	}
+	log.Println("redis read:", s)
 	return nil
 }
 
@@ -69,9 +70,10 @@ func (rs *redisStore) Create(s *Session) error {
 }
 
 func (rs *redisStore) Update(s *Session) error {
+
 	rs.Lock()
 	defer rs.Unlock()
-	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
+
 	if s.Data == nil {
 		s.Data = make(map[string]interface{}, 8)
 	}
