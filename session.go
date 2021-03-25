@@ -23,12 +23,14 @@
 package sessionx
 
 import (
-	"encoding/base64"
+	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
+	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -37,19 +39,24 @@ var (
 )
 
 type Session struct {
-	ID      string
+	// 会话ID
+	ID string
+	// session超时时间
 	Expires time.Time
-	Data    map[string]interface{}
-	_w      http.ResponseWriter
+	// 存储数据的map
+	Data map[string]interface{}
+	_w   http.ResponseWriter
+	// 每个session对应一个cookie
+	Cookie *http.Cookie
 }
 
 // Get Retrieves the stored element data from the session via the key
 func (s *Session) Get(key string) (interface{}, error) {
 	err := mgr.store.Reader(s)
-	s.refreshCookie()
 	if err != nil {
 		return nil, err
 	}
+	s.refreshCookie()
 	if ele, ok := s.Data[key]; ok {
 		return ele, nil
 	}
@@ -76,6 +83,7 @@ func (s *Session) Remove(key string) error {
 
 // Clean up all data for this session
 func (s *Session) Clean() error {
+	s.refreshCookie()
 	return mgr.store.Delete(s)
 }
 
@@ -83,7 +91,6 @@ func (s *Session) Clean() error {
 func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	mux.Lock()
 	defer mux.Unlock()
-
 	// 从请求里面取session
 	var session Session
 	session._w = w
@@ -91,37 +98,88 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
 		return createSession(w, cookie, &session)
 	}
-
-	// ID通过编码之后长度是48位
-	if len(cookie.Value) >= 48 {
-		sDec, _ := base64.StdEncoding.DecodeString(cookie.Value)
-		session.ID = string(sDec)
+	// ID通过编码之后长度是73位
+	if len(cookie.Value) >= 73 {
+		session.ID = cookie.Value
 		if mgr.store.Reader(&session) != nil {
 			return createSession(w, cookie, &session)
 		}
+
+		// 防止web服务器重启之后redis会话数据还在
+		// 但是浏览器cookie没有更新
+		// 重新刷新cookie
+
+		// 存在指针一致问题，这样操作还是一块内存，所有我们需要复制副本
+		_ = session.copy(mgr.cfg.Cookie)
+		session.Cookie.Value = session.ID
+		session.Cookie.Expires = session.Expires
+		log.Println(session.Cookie)
+		http.SetCookie(w, session.Cookie)
 	}
+	// 地址一样不行！！！
+	// log.Printf("mgr.cfg.Cookie pointer:%p \n", mgr.cfg.Cookie)
+	// log.Printf("session.cookie pointer:%p \n", session.Cookie)
 	return &session
 }
 
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) *Session {
-	sessionId := uuid.New().String()
-	expireTime := time.Now().Add(mgr.cfg.TimeOut)
-
-	// init cookie parameter
-	cookie = mgr.cfg.Cookie
-	cookie.Expires = expireTime
-	cookie.Value = base64.StdEncoding.EncodeToString([]byte(sessionId))
-
 	// init session parameter
-	session.ID = sessionId
-	session.Expires = expireTime
+	session.ID = generateUUID()
+	session.Expires = time.Now().Add(mgr.cfg.TimeOut)
 	_ = mgr.store.Create(session)
-	http.SetCookie(w, cookie)
+
+	// 重置配置cookie模板
+	session.copy(mgr.cfg.Cookie)
+	session.Cookie.Value = session.ID
+	session.Cookie.Expires = session.Expires
+
+	http.SetCookie(w, session.Cookie)
 	return session
 }
 
 // 刷新cookie 会话只要有操作就重置会话生命周期
 func (s *Session) refreshCookie() {
-	mgr.cfg.Cookie.Expires = time.Now().Add(mgr.cfg.TimeOut)
-	http.SetCookie(s._w, mgr.cfg.Cookie)
+	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
+	s.Cookie.Expires = s.Expires
+	// 这里不是使用指针
+	// 因为这里我们支持redis 如果web服务器重启了
+	// 那么session数据在内存里清空
+	// 从redis读取的数据反序列化地址和重新启动的不一样
+	// 所有直接数据拷贝
+	http.SetCookie(s._w, s.Cookie)
+}
+
+func generateUUID() string {
+	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
+}
+
+func (s *Session) copy(cookie *http.Cookie) error {
+	s.Cookie = new(http.Cookie)
+	return _copy(s.Cookie, cookie)
+}
+
+// package deepcopy provides functionality for making deep copies of objects.
+// We originally wanted to use code.google.com/p/rog-go/exp/deepcopy, but it's
+// not working with a current version of Go (even after fixing compile issues,
+// its unit tests don't pass). Hence, we created this deepcopy.  It makes a
+// deep copy by using json.Marshal and json.Unmarshal, so it's not very
+// performant.
+
+// Make a deep copy from src into dst.
+func _copy(dst interface{}, src interface{}) error {
+	if dst == nil {
+		return fmt.Errorf("dst cannot be nil")
+	}
+	if src == nil {
+		return fmt.Errorf("src cannot be nil")
+	}
+	bytes, err := json.Marshal(src)
+	if err != nil {
+		return fmt.Errorf("Unable to marshal src: %s", err)
+	}
+	err = json.Unmarshal(bytes, dst)
+	if err != nil {
+		return fmt.Errorf("Unable to unmarshal into dst: %s", err)
+	}
+	return nil
 }
