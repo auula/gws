@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
-	sessionx "github.com/higker/sesssionx"
+	"log"
 	"net/http"
 	"time"
+
+	sessionx "github.com/higker/sesssionx"
 )
 
 var (
@@ -29,12 +31,14 @@ func main() {
 	sessionx.New(sessionx.R, cfg)
 	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
-		_ = session.Set("K", time.Now().Format("2006 01-02 15:04:05"))
+		err := session.Set("K", time.Now().Format("2006 01-02 15:04:05"))
+		log.Println("set key ", err)
 		_, _ = fmt.Fprintln(writer, "set succeed.")
 	})
 	http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
-		v, _ := session.Get("K")
+		v, err := session.Get("K")
+		log.Println("get key ", err)
 		_, _ = fmt.Fprintln(writer, v)
 	})
 	_ = http.ListenAndServe(":8080", nil)

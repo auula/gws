@@ -1,15 +1,15 @@
 package sessionx
 
 import (
-	"github.com/google/uuid"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
 	_testCfg = &Configs{
-		EncryptedKey:   "0123456789012345",
 		TimeOut:        time.Minute * 30,
 		RedisAddr:      "127.0.0.1:6379",
 		RedisDB:        0,

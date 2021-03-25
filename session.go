@@ -23,12 +23,12 @@
 package sessionx
 
 import (
-	"encoding/base64"
 	"fmt"
-	"github.com/google/uuid"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -37,19 +37,24 @@ var (
 )
 
 type Session struct {
-	ID      string
+	// 会话ID
+	ID string
+	// session超时时间
 	Expires time.Time
-	Data    map[string]interface{}
-	_w      http.ResponseWriter
+	// 存储数据的map
+	Data map[string]interface{}
+	_w   http.ResponseWriter
+	// 每个session对应一个cookie
+	cookie *http.Cookie
 }
 
 // Get Retrieves the stored element data from the session via the key
 func (s *Session) Get(key string) (interface{}, error) {
 	err := mgr.store.Reader(s)
-	s.refreshCookie()
 	if err != nil {
 		return nil, err
 	}
+	s.refreshCookie()
 	if ele, ok := s.Data[key]; ok {
 		return ele, nil
 	}
@@ -76,6 +81,7 @@ func (s *Session) Remove(key string) error {
 
 // Clean up all data for this session
 func (s *Session) Clean() error {
+	s.refreshCookie()
 	return mgr.store.Delete(s)
 }
 
@@ -83,45 +89,57 @@ func (s *Session) Clean() error {
 func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	mux.Lock()
 	defer mux.Unlock()
-
 	// 从请求里面取session
 	var session Session
-	session._w = w
 	cookie, err := req.Cookie(mgr.cfg.Cookie.Name)
 	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
 		return createSession(w, cookie, &session)
 	}
-
-	// ID通过编码之后长度是48位
-	if len(cookie.Value) >= 48 {
-		sDec, _ := base64.StdEncoding.DecodeString(cookie.Value)
-		session.ID = string(sDec)
+	// ID通过编码之后长度是73位
+	if len(cookie.Value) >= 73 {
+		session.ID = cookie.Value
 		if mgr.store.Reader(&session) != nil {
 			return createSession(w, cookie, &session)
 		}
+		// 防止web服务器重启之后redis会话数据还在
+		// 但是浏览器cookie没有更新
+		// 重新刷新cookie
+		mgr.cfg.Cookie.Value = session.ID
+		mgr.cfg.Cookie.Expires = session.Expires
+		session.cookie = mgr.cfg.Cookie
+		http.SetCookie(w, session.cookie)
 	}
 	return &session
 }
 
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) *Session {
-	sessionId := uuid.New().String()
-	expireTime := time.Now().Add(mgr.cfg.TimeOut)
-
-	// init cookie parameter
-	cookie = mgr.cfg.Cookie
-	cookie.Expires = expireTime
-	cookie.Value = base64.StdEncoding.EncodeToString([]byte(sessionId))
-
+	sessionId := generateUUID()
 	// init session parameter
 	session.ID = sessionId
-	session.Expires = expireTime
+	session.Expires = time.Now().Add(mgr.cfg.TimeOut)
 	_ = mgr.store.Create(session)
-	http.SetCookie(w, cookie)
+
+	// init cookie parameter
+	session.cookie = mgr.cfg.Cookie
+	session.cookie.Expires = session.Expires
+	session.cookie.Value = sessionId
+
+	http.SetCookie(w, session.cookie)
 	return session
 }
 
 // 刷新cookie 会话只要有操作就重置会话生命周期
 func (s *Session) refreshCookie() {
-	mgr.cfg.Cookie.Expires = time.Now().Add(mgr.cfg.TimeOut)
-	http.SetCookie(s._w, mgr.cfg.Cookie)
+	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
+	s.cookie.Expires = s.Expires
+	// 这里不是使用指针
+	// 因为这里我们支持redis 如果web服务器重启了
+	// 那么session数据在内存里清空
+	// 从redis读取的数据反序列化地址和重新启动的不一样
+	// 所有直接数据拷贝
+	http.SetCookie(s._w, s.cookie)
+}
+
+func generateUUID() string {
+	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
 }
