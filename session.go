@@ -23,7 +23,9 @@
 package sessionx
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -91,6 +93,7 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	defer mux.Unlock()
 	// 从请求里面取session
 	var session Session
+	session._w = w
 	cookie, err := req.Cookie(mgr.cfg.Cookie.Name)
 	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
 		return createSession(w, cookie, &session)
@@ -105,10 +108,14 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 		// 但是浏览器cookie没有更新
 		// 重新刷新cookie
 		mgr.cfg.Cookie.Value = session.ID
+		session.copy(mgr.cfg.Cookie)
 		mgr.cfg.Cookie.Expires = session.Expires
 		session.cookie = mgr.cfg.Cookie
 		http.SetCookie(w, session.cookie)
 	}
+	// 地址一样不行！！！
+	log.Printf("mgr.cfg.Cookie pointer:%p \n", session.cookie)
+	log.Printf("session.cookie pointer:%p \n", session.cookie)
 	return &session
 }
 
@@ -122,6 +129,7 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	// init cookie parameter
 	session.cookie = mgr.cfg.Cookie
 	session.cookie.Expires = session.Expires
+	// 存在指针一致问题，这样操作还是一块内存，所有我们需要复制副本
 	session.cookie.Value = sessionId
 
 	http.SetCookie(w, session.cookie)
@@ -142,4 +150,35 @@ func (s *Session) refreshCookie() {
 
 func generateUUID() string {
 	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
+}
+
+func (s *Session) copy(cookie *http.Cookie) error {
+	s.cookie = new(http.Cookie)
+	return _copy(cookie, s.cookie)
+}
+
+// package deepcopy provides functionality for making deep copies of objects.
+// We originally wanted to use code.google.com/p/rog-go/exp/deepcopy, but it's
+// not working with a current version of Go (even after fixing compile issues,
+// its unit tests don't pass). Hence, we created this deepcopy.  It makes a
+// deep copy by using json.Marshal and json.Unmarshal, so it's not very
+// performant.
+
+// Make a deep copy from src into dst.
+func _copy(dst interface{}, src interface{}) error {
+	if dst == nil {
+		return fmt.Errorf("dst cannot be nil")
+	}
+	if src == nil {
+		return fmt.Errorf("src cannot be nil")
+	}
+	bytes, err := json.Marshal(src)
+	if err != nil {
+		return fmt.Errorf("Unable to marshal src: %s", err)
+	}
+	err = json.Unmarshal(bytes, dst)
+	if err != nil {
+		return fmt.Errorf("Unable to unmarshal into dst: %s", err)
+	}
+	return nil
 }
