@@ -104,6 +104,7 @@ func (m *memoryStore) gc() {
 			}
 		}
 		m.Unlock()
+		runtime.GC()
 		// log.Println("gc running...")
 	}
 

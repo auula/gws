@@ -31,6 +31,14 @@ import (
 type Configs struct {
 	Cookie *http.Cookie
 
+	// Domain string `json:"domain" validate:"required"`
+
+	// Path string `json:"Path" validate:"required"`
+
+	// Secure string `json:"secure" validate:"required"`
+
+	// HttpOnly bool `json:"http_only" validate:"required"`
+
 	// sessionID value encryption key
 	//EncryptedKey string `json:"encrypted_key" validate:"required,len=16"`
 

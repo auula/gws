@@ -20,7 +20,7 @@ var (
 		Cookie: &http.Cookie{
 			Name:     sessionx.SessionKey,
 			Path:     "/",
-			Expires:  time.Now().Add(time.Minute * 30),
+			Expires:  time.Now().Add(time.Minute * 30), // TimeOut
 			Secure:   false,
 			HttpOnly: true,
 		},

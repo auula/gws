@@ -47,7 +47,7 @@ type Session struct {
 	Data map[string]interface{}
 	_w   http.ResponseWriter
 	// 每个session对应一个cookie
-	cookie *http.Cookie
+	Cookie *http.Cookie
 }
 
 // Get Retrieves the stored element data from the session via the key
@@ -104,48 +104,49 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 		if mgr.store.Reader(&session) != nil {
 			return createSession(w, cookie, &session)
 		}
+
 		// 防止web服务器重启之后redis会话数据还在
 		// 但是浏览器cookie没有更新
 		// 重新刷新cookie
-		mgr.cfg.Cookie.Value = session.ID
-		session.copy(mgr.cfg.Cookie)
-		mgr.cfg.Cookie.Expires = session.Expires
-		session.cookie = mgr.cfg.Cookie
-		http.SetCookie(w, session.cookie)
+
+		// 存在指针一致问题，这样操作还是一块内存，所有我们需要复制副本
+		_ = session.copy(mgr.cfg.Cookie)
+		session.Cookie.Value = session.ID
+		session.Cookie.Expires = session.Expires
+		log.Println(session.Cookie)
+		http.SetCookie(w, session.Cookie)
 	}
 	// 地址一样不行！！！
-	log.Printf("mgr.cfg.Cookie pointer:%p \n", session.cookie)
-	log.Printf("session.cookie pointer:%p \n", session.cookie)
+	// log.Printf("mgr.cfg.Cookie pointer:%p \n", mgr.cfg.Cookie)
+	// log.Printf("session.cookie pointer:%p \n", session.Cookie)
 	return &session
 }
 
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) *Session {
-	sessionId := generateUUID()
 	// init session parameter
-	session.ID = sessionId
+	session.ID = generateUUID()
 	session.Expires = time.Now().Add(mgr.cfg.TimeOut)
 	_ = mgr.store.Create(session)
 
-	// init cookie parameter
-	session.cookie = mgr.cfg.Cookie
-	session.cookie.Expires = session.Expires
-	// 存在指针一致问题，这样操作还是一块内存，所有我们需要复制副本
-	session.cookie.Value = sessionId
+	// 重置配置cookie模板
+	session.copy(mgr.cfg.Cookie)
+	session.Cookie.Value = session.ID
+	session.Cookie.Expires = session.Expires
 
-	http.SetCookie(w, session.cookie)
+	http.SetCookie(w, session.Cookie)
 	return session
 }
 
 // 刷新cookie 会话只要有操作就重置会话生命周期
 func (s *Session) refreshCookie() {
 	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
-	s.cookie.Expires = s.Expires
+	s.Cookie.Expires = s.Expires
 	// 这里不是使用指针
 	// 因为这里我们支持redis 如果web服务器重启了
 	// 那么session数据在内存里清空
 	// 从redis读取的数据反序列化地址和重新启动的不一样
 	// 所有直接数据拷贝
-	http.SetCookie(s._w, s.cookie)
+	http.SetCookie(s._w, s.Cookie)
 }
 
 func generateUUID() string {
@@ -153,8 +154,8 @@ func generateUUID() string {
 }
 
 func (s *Session) copy(cookie *http.Cookie) error {
-	s.cookie = new(http.Cookie)
-	return _copy(cookie, s.cookie)
+	s.Cookie = new(http.Cookie)
+	return _copy(s.Cookie, cookie)
 }
 
 // package deepcopy provides functionality for making deep copies of objects.
