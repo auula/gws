@@ -43,7 +43,7 @@ func (m *memoryStore) Reader(s *Session) error {
 		s.Data = ele.Data
 		return nil
 	}
-
+	// s = nil
 	return fmt.Errorf("id `%s` not exist session data", s.ID)
 }
 

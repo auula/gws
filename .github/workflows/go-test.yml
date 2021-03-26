@@ -23,3 +23,6 @@ jobs:
 
     - name: 测试memory存储
       run: go test -v --run
+
+    - name: 60秒benchmark测试
+      run: go test -bench=. -benchtime=60s -run=none
