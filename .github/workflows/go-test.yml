@@ -21,8 +21,8 @@ jobs:
     - name: 检测依赖
       run: go mod tidy 
 
-    - name: 测试memory存储
-      run: go test -v --run
+    - name: 测试存储
+      run: go test -v
 
     - name: 60秒benchmark测试
       run: go test -bench=. -benchtime=60s -run=none
