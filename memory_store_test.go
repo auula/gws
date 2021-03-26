@@ -108,10 +108,7 @@ func BenchmarkWrite(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		s := new(Session)
 		s.ID = uuid.New().String()
-		s.Data = make(map[string]interface{}, 8)
-		s.Expires = time.Now().Add(mgr.cfg.TimeOut)
 		_ = mgr.store.Update(s)
 	}
 }

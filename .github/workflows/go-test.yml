@@ -25,4 +25,4 @@ jobs:
       run: go test -v
 
     - name: benchmark测试
-      run: go test -bench=.
+      run: go test -bench=. -benchtime=60s -run=none
