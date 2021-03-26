@@ -24,13 +24,14 @@ package sessionx
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/barkimedes/go-deepcopy"
+	"github.com/google/uuid"
 	"log"
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 var (
@@ -155,14 +156,35 @@ func generateUUID() string {
 
 func (s *Session) copy(cookie *http.Cookie) error {
 	s.Cookie = new(http.Cookie)
-	return _copy(s.Cookie, cookie)
+	c, err := deepcopy.Anything(cookie)
+	if err != nil {
+		return errors.New("cookie make a deep copy from src into dst failed")
+	}
+	s.Cookie = c.(*http.Cookie)
+	return nil
 }
 
-// package deepcopy provides functionality for making deep copies of objects.
-// We originally wanted to use code.google.com/p/rog-go/exp/deepcopy, but it's
-// not working with a current version of Go (even after fixing compile issues,
-// its unit tests don't pass). Hence, we created this deepcopy.  It makes a
-// deep copy by using json.Marshal and json.Unmarshal, so it's not very
+func (s *Session) MigrateSession() error {
+	// 迁移到新内存 防止会话一致引发安全问题
+	// 这个问题的根源在 sessionid 不变，如果用户在未登录时拿到的是一个 sessionid，登录之后服务端给用户重新换一个 sessionid，就可以防止会话固定攻击了。
+	s.ID = generateUUID()
+	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
+	s.Cookie.Value = s.ID
+	s.Cookie.Expires = s.Expires
+	newSession, err := deepcopy.Anything(s)
+	if err != nil {
+		return errors.New("migrate session make a deep copy from src into dst failed")
+	}
+	s.refreshCookie()
+	// 新内存开始持久化
+	err = mgr.store.Create(newSession.(*Session))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// It makes a deep copy by using json.Marshal and json.Unmarshal, so it's not very
 // performant.
 
 // Make a deep copy from src into dst.
