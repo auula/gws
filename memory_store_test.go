@@ -105,7 +105,7 @@ func BenchmarkWrite(b *testing.B) {
 	//	ok      github.com/higker/sesssionx     3.664s
 
 	New(M, _testCfg)
-
+	b.Logf("系统:%s CPU核数:%d ", runtime.GOOS, runtime.NumCPU())
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		s.ID = uuid.New().String()
