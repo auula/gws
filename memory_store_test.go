@@ -128,7 +128,7 @@ func Test_memoryStore_Create(t *testing.T) {
 		wantErr bool
 	}{
 		// TODO: Add test cases.
-		{name: "test1", fields: fields{sessions: make(map[string]*Session)}, args: args{s: s}, wantErr: true},
+		{name: "test1", fields: fields{sessions: make(map[string]*Session)}, args: args{s: s}, wantErr: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
