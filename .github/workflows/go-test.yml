@@ -28,5 +28,5 @@ jobs:
       run: go test -bench=. -benchtime=30s -run=none
 
     - name: 代码健康检测
-    - run: go test ./... -race -coverprofile=coverage.txt -covermode=atomic -v
-    - run: bash <(curl -s https://codecov.io/bash) -t ${{ secrets.CODECOV_TOKEN }}
+      run: go test ./... -race -coverprofile=coverage.txt -covermode=atomic -v
+      run: bash <(curl -s https://codecov.io/bash) -t ${{ secrets.CODECOV_TOKEN }}
