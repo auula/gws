@@ -16,6 +16,7 @@ import (
 )
 
 var (
+	// 测试配置
 	_testCfg = &Configs{
 		TimeOut:        time.Minute * 30,
 		RedisAddr:      "127.0.0.1:6379",
