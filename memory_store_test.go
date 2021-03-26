@@ -2,6 +2,8 @@ package sessionx
 
 import (
 	"net/http"
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,57 +27,56 @@ var (
 			MaxAge:   60 * 30,
 		},
 	}
+	m *memoryStore
+	s *Session
 )
 
-func TestCreate(t *testing.T) {
-	m := new(memoryStore)
-	s := new(Session)
-	s.ID = "20210320"
-	m.Create(s)
-	t.Log("session = ", s)
+func TestMain(t *testing.M) {
+	m = new(memoryStore)
+	m.sessions = make(map[string]*Session, 512*runtime.NumCPU())
+	go m.gc()
+	mgr = &manager{cfg: _testCfg, store: m}
+
+	s = new(Session)
+	s.ID = uuid.New().String()
+	s.Data = make(map[string]interface{}, 8)
+	s.Cookie = _testCfg.Cookie
+	s.Expires = time.Now().Add(_testCfg.TimeOut)
+	t.Run()
 }
 
-func TestReader(t *testing.T) {
-	m := new(memoryStore)
-	s := new(Session)
-	s.ID = "20210320"
-	m.Create(s)
-	err := m.Reader(s)
-	if err != nil {
-		t.Error(err.Error())
-	}
-	t.Log("session = ", s)
-}
+func TestALL(t *testing.T) {
 
-func TestDelete(t *testing.T) {
-	m := new(memoryStore)
-	s := new(Session)
-	s.ID = "20210320"
 	m.Create(s)
-	t.Log("session = ", s)
-	m.Delete(s)
-	err := m.Reader(s)
-	if err != nil {
-		t.Error(err.Error())
-	}
+	t.Log("Create session = ", s)
 
-}
-
-func TestUpdated(t *testing.T) {
-	m := new(memoryStore)
-	s := new(Session)
-	s.ID = "20210320"
-	m.Create(s)
-	t.Log("session = ", s)
 	v := make(map[string]interface{})
 	v["v"] = "test"
-	m.Update(&Session{ID: "20210320", Data: v, Expires: time.Now()})
+	s.Data = v
+	m.Update(s)
 	err := m.Reader(s)
 	if err != nil {
 		t.Error(err.Error())
 	}
-	t.Log("session = ", s)
+	t.Log("Read session = ", s)
 
+	err = m.Remove(s, "v")
+	if err != nil {
+		t.Error(err.Error())
+	}
+	err = m.Reader(s)
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	t.Log("Remove session = ", s)
+
+	m.Delete(s)
+	err = m.Reader(s)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	t.Log("Delete session = ", s)
 }
 
 // https://my.oschina.net/solate/blog/3034188
@@ -108,5 +109,36 @@ func BenchmarkWrite(b *testing.B) {
 		s.Data = make(map[string]interface{}, 8)
 		s.Expires = time.Now().Add(mgr.cfg.TimeOut)
 		_ = mgr.store.Update(s)
+	}
+}
+
+func Test_memoryStore_Create(t *testing.T) {
+
+	type fields struct {
+		Mutex    sync.Mutex
+		sessions map[string]*Session
+	}
+	type args struct {
+		s *Session
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{name: "test1", fields: fields{sessions: make(map[string]*Session)}, args: args{s: s}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &memoryStore{
+				Mutex:    tt.fields.Mutex,
+				sessions: tt.fields.sessions,
+			}
+			if err := m.Create(tt.args.s); (err != nil) != tt.wantErr {
+				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
