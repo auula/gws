@@ -24,5 +24,5 @@ jobs:
     - name: 测试存储
       run: go test -v
 
-    - name: 60秒benchmark测试
-      run: go test -bench=. -benchtime=60s -run=none
+    - name: benchmark测试
+      run: go test -bench=.
