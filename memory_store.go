@@ -97,10 +97,10 @@ func (m *memoryStore) gc() {
 	for {
 		time.Sleep(time.Minute * 10)
 		m.Lock()
-		for s, session := range m.sessions {
+		for id, session := range m.sessions {
 			if time.Now().UnixNano() >= session.Expires.UnixNano() {
 				// log.Println("session-id: ", s, "expired.")
-				delete(m.sessions, s)
+				delete(m.sessions, id)
 			}
 		}
 		m.Unlock()

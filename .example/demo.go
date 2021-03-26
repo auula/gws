@@ -41,5 +41,13 @@ func main() {
 		log.Println("get key ", err)
 		_, _ = fmt.Fprintln(writer, v)
 	})
+	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
+		session := sessionx.Handler(writer, request)
+		err := session.MigrateSession()
+		if err != nil {
+			log.Println(err)
+		}
+		fmt.Fprintln(writer, session)
+	})
 	_ = http.ListenAndServe(":8080", nil)
 }

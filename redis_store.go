@@ -25,11 +25,9 @@ package sessionx
 import (
 	"context"
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	"log"
 	"sync"
-	"time"
-
-	"github.com/go-redis/redis/v8"
 )
 
 var (
@@ -83,7 +81,6 @@ func (rs *redisStore) Update(s *Session) error {
 func (rs *redisStore) Remove(s *Session, key string) error {
 	rs.Lock()
 	defer rs.Unlock()
-	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
 	// delete it form memory
 	if _, ok := s.Data[key]; ok {
 		delete(s.Data, key)
