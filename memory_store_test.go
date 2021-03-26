@@ -38,7 +38,7 @@ var (
 
 func TestMain(t *testing.M) {
 	m = new(memoryStore)
-	m.sessions = make(map[string]*Session, 512*runtime.NumCPU())
+	m.sessions = make(map[string]*Session, 1024*8)
 	go m.gc()
 	mgr = &manager{cfg: _testCfg, store: m}
 
@@ -104,12 +104,11 @@ func BenchmarkWrite(b *testing.B) {
 	//	PASS
 	//	ok      github.com/higker/sesssionx     3.664s
 
-	New(M, _testCfg)
 	b.Logf("系统:%s CPU核数:%d ", runtime.GOOS, runtime.NumCPU())
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		s.ID = uuid.New().String()
-		_ = mgr.store.Update(s)
+		_ = m.Update(s)
 	}
 }
 
