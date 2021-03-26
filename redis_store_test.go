@@ -4,9 +4,26 @@ import (
 	"context"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
+	"net/http"
 	"testing"
 	"time"
 )
+
+var _testCfg = &Configs{
+	TimeOut:        time.Minute * 30,
+	RedisAddr:      "127.0.0.1:6379",
+	RedisDB:        0,
+	RedisPassword:  "redis.nosql",
+	RedisKeyPrefix: SessionKey,
+	PoolSize:       100,
+	Cookie: &http.Cookie{
+		Name:     SessionKey,
+		Path:     "/",
+		Expires:  time.Now().Add(time.Minute * 30), // TimeOut
+		Secure:   false,
+		HttpOnly: true,
+	},
+}
 
 func Test_redisStore(t *testing.T) {
 	rdb := redis.NewClient(&redis.Options{
