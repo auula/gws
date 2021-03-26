@@ -28,19 +28,20 @@ var (
 )
 
 func main() {
-	sessionx.New(sessionx.R, cfg)
+	sessionx.New(sessionx.M, cfg)
+
 	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
-		err := session.Set("K", time.Now().Format("2006 01-02 15:04:05"))
-		log.Println("set key ", err)
-		_, _ = fmt.Fprintln(writer, "set succeed.")
+		session.Set("K", time.Now().Format("2006 01-02 15:04:05"))
+		fmt.Fprintln(writer, "set time value succeed.")
 	})
+
 	http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
-		v, err := session.Get("K")
-		log.Println("get key ", err)
-		_, _ = fmt.Fprintln(writer, v)
+		v, _ := session.Get("K")
+		fmt.Fprintln(writer, fmt.Sprintf("The stored value is : %s", v))
 	})
+
 	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
 		err := session.MigrateSession()
