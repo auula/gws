@@ -31,7 +31,7 @@ jobs:
       run: go test -bench=. -benchtime=30s -run=none
 
     - name: 覆盖率扫描
-        run: |
+        run:
           go test -coverprofile=cover.out
 
           curl https://deepsource.io/cli | sh
