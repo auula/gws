@@ -38,7 +38,12 @@ func main() {
 
 	http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
-		v, _ := session.Get("K")
+		v, err := session.Get("K")
+		log.Println(session)
+		if err != nil {
+			fmt.Fprintln(writer, err.Error())
+			return
+		}
 		fmt.Fprintln(writer, fmt.Sprintf("The stored value is : %s", v))
 	})
 

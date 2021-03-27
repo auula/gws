@@ -31,11 +31,11 @@ import (
 
 type memoryStore struct {
 	sync.Mutex
-	sessions sync.Map
+	sync.Map
 }
 
-func (m *memoryStore) Reader(s *Session) error {
-	if ele, ok := m.sessions.Load(s.ID); ok {
+func (m *memoryStore) Read(s *Session) error {
+	if ele, ok := m.Load(s.ID); ok {
 		// bug 这个不能直接 s = ele 因为有map地址
 		s.Data = ele.(*Session).Data
 		return nil
@@ -45,17 +45,17 @@ func (m *memoryStore) Reader(s *Session) error {
 }
 
 func (m *memoryStore) Create(s *Session) error {
-	m.sessions.Store(s.ID, s)
+	m.Store(s.ID, s)
 	return nil
 }
 
-func (m *memoryStore) Delete(s *Session) error {
-	m.sessions.Delete(s.ID)
+func (m *memoryStore) Remove(s *Session) error {
+	m.Delete(s.ID)
 	return nil
 }
 
 func (m *memoryStore) Update(s *Session) error {
-	if ele, ok := m.sessions.Load(s.ID); ok {
+	if ele, ok := m.Load(s.ID); ok {
 		// 为什么是交换data 因为我们不确定上层是否扩容换了地址
 		ele.(*Session).Data = s.Data
 		ele.(*Session).Expires = time.Now().Add(mgr.cfg.TimeOut)
@@ -69,9 +69,9 @@ func (m *memoryStore) gc() {
 	// recycle your trash every 10 minutes
 	for {
 		time.Sleep(time.Minute * 10)
-		m.sessions.Range(func(key, value interface{}) bool {
+		m.Range(func(key, value interface{}) bool {
 			if time.Now().UnixNano() >= value.(*Session).Expires.UnixNano() {
-				m.sessions.Delete(key)
+				m.Delete(key)
 			}
 			return true
 		})
