@@ -63,7 +63,7 @@ func (rs *redisStore) Update(s *Session) error {
 	return rs.setValue(s)
 }
 
-func (rs *redisStore) Delete(s *Session) error {
+func (rs *redisStore) Remove(s *Session) error {
 	return rs.sessions.Del(ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Err()
 }
 

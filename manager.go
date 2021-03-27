@@ -26,7 +26,6 @@ import (
 	"context"
 	"github.com/go-playground/validator/v10"
 	"github.com/go-redis/redis/v8"
-	"runtime"
 	"time"
 )
 
@@ -53,7 +52,6 @@ func New(t storeType, cfg *Configs) {
 
 		// init memory storage
 		m := new(memoryStore)
-		m.sessions = make(map[string]*Session, 512*runtime.NumCPU())
 		go m.gc()
 		mgr = &manager{cfg: cfg, store: m}
 

@@ -52,11 +52,11 @@ type Session struct {
 }
 
 // Get Retrieves the stored element data from the session via the key
-func (s *Session) Get(key string) (interface{}, error) {
-	err := mgr.store.Reader(s)
-	if err != nil {
-		return nil, err
-	}
+func (s *Session) Get(key interface{}) (interface{}, error) {
+	//err := mgr.store.Reader(s)
+	//if err != nil {
+	//	return nil, err
+	//}
 	s.refreshCookie()
 	if ele, ok := s.Data.Load(key); ok {
 		return ele, nil
@@ -65,14 +65,14 @@ func (s *Session) Get(key string) (interface{}, error) {
 }
 
 // Set Stores information in the session
-func (s *Session) Set(key string, v interface{}) error {
+func (s *Session) Set(key, v interface{}) error {
 	s.Data.Store(key, v)
 	s.refreshCookie()
 	return mgr.store.Update(s)
 }
 
 // Remove an element stored in the session
-func (s *Session) Remove(key string) error {
+func (s *Session) Remove(key interface{}) error {
 	s.refreshCookie()
 	s.Data.Delete(key)
 	return mgr.store.Update(s)
@@ -81,7 +81,7 @@ func (s *Session) Remove(key string) error {
 // Clean up all data for this session
 func (s *Session) Clean() error {
 	s.refreshCookie()
-	return mgr.store.Delete(s)
+	return mgr.store.Remove(s)
 }
 
 // Handler Get session data from the Request
@@ -162,15 +162,18 @@ func (s *Session) MigrateSession() error {
 	// 迁移到新内存 防止会话一致引发安全问题
 	// 这个问题的根源在 sessionid 不变，如果用户在未登录时拿到的是一个 sessionid，登录之后服务端给用户重新换一个 sessionid，就可以防止会话固定攻击了。
 	s.ID = generateUUID()
-	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
-	s.Cookie.Value = s.ID
-	s.Cookie.Expires = s.Expires
 	newSession, err := deepcopy.Anything(s)
 	if err != nil {
 		return errors.New("migrate session make a deep copy from src into dst failed")
 	}
-	s.refreshCookie()
+	newSession.(*Session).ID = s.ID
+	newSession.(*Session).Data = s.Data
+	newSession.(*Session).Cookie.Value = s.ID
+	newSession.(*Session).Expires = time.Now().Add(mgr.cfg.TimeOut)
+	newSession.(*Session)._w = s._w
+	newSession.(*Session).refreshCookie()
 	// 新内存开始持久化
+	//log.Println("MigrateSession:", newSession.(*Session))
 	return mgr.store.Create(newSession.(*Session))
 }
 
