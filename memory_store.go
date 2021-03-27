@@ -30,7 +30,6 @@ import (
 )
 
 type memoryStore struct {
-	sync.Mutex
 	sync.Map
 }
 

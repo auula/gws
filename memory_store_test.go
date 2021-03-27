@@ -8,7 +8,6 @@ package sessionx
 import (
 	"net/http"
 	"runtime"
-	"sync"
 	"testing"
 	"time"
 
@@ -39,13 +38,12 @@ var (
 
 func TestMain(t *testing.M) {
 	m = new(memoryStore)
-	m.sessions = make(map[string]*Session, 1024*8)
 	go m.gc()
 	mgr = &manager{cfg: _testCfg, store: m}
 
 	s = new(Session)
 	s.ID = uuid.New().String()
-	s.Data = make(map[string]interface{}, 8)
+	s.Data = make(map[interface{}]interface{}, 8)
 	s.Cookie = _testCfg.Cookie
 	s.Expires = time.Now().Add(_testCfg.TimeOut)
 	t.Run()
@@ -56,7 +54,7 @@ func TestALL(t *testing.T) {
 	m.Create(s)
 	t.Log("Create session = ", s)
 
-	v := make(map[string]interface{})
+	v := make(map[interface{}]interface{})
 	v["v"] = "test"
 	s.Data = v
 	m.Update(s)
@@ -66,18 +64,7 @@ func TestALL(t *testing.T) {
 	}
 	t.Log("Read session = ", s)
 
-	err = m.Remove(s, "v")
-	if err != nil {
-		t.Error(err.Error())
-	}
-	err = m.Read(s)
-	if err != nil {
-		t.Error(err.Error())
-	}
-
-	t.Log("Remove session = ", s)
-
-	m.Delete(s)
+	m.Delete(s.ID)
 	err = m.Read(s)
 	if err != nil {
 		t.Log("Delete session successful ")
@@ -110,36 +97,5 @@ func BenchmarkWrite(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s.ID = uuid.New().String()
 		_ = m.Update(s)
-	}
-}
-
-func Test_memoryStore_Create(t *testing.T) {
-
-	type fields struct {
-		Mutex    sync.Mutex
-		sessions map[string]*Session
-	}
-	type args struct {
-		s *Session
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-		{name: "test1", fields: fields{sessions: make(map[string]*Session)}, args: args{s: s}, wantErr: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := &memoryStore{
-				Mutex:    tt.fields.Mutex,
-				sessions: tt.fields.sessions,
-			}
-			if err := m.Create(tt.args.s); (err != nil) != tt.wantErr {
-				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
 	}
 }

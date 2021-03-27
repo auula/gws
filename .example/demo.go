@@ -39,7 +39,6 @@ func main() {
 	http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
 		v, err := session.Get("K")
-		log.Println(session)
 		if err != nil {
 			fmt.Fprintln(writer, err.Error())
 			return

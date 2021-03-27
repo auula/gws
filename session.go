@@ -93,7 +93,7 @@ func (s *Session) Set(key, v interface{}) error {
 // Remove an element stored in the session
 func (s *Session) Remove(key interface{}) error {
 	s.refreshCookie()
-	lock["R"](func() {
+	lock["W"](func() {
 		delete(s.Data, key)
 	})
 	return mgr.store.Update(s)
