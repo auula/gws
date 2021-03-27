@@ -27,6 +27,9 @@ jobs:
     - name: 持续30秒benchmark测试
       run: go test -bench=. -benchtime=30s -run=none
 
+    - name: 覆盖率扫描
+      run: shell ./.deepsource.sh
+
     - name: 代码健康检测
       run: go test ./... -race -coverprofile=coverage.txt -covermode=atomic -v
 
