@@ -21,6 +21,7 @@ var (
 			Name:     sessionx.SessionKey,
 			Path:     "/",
 			Secure:   false,
+			Expires:  time.Now().Add(time.Minute * 30),
 			HttpOnly: true,
 		},
 	}

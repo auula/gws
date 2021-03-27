@@ -52,7 +52,6 @@ func New(t storeType, cfg *Configs) {
 		// init memory storage
 		m := new(memoryStore)
 		go m.gc()
-		cfg.Cookie.Expires = time.Now().Add(cfg.TimeOut)
 		mgr = &manager{cfg: cfg, store: m}
 
 	case R:
@@ -78,7 +77,6 @@ func New(t storeType, cfg *Configs) {
 		if err := r.sessions.Ping(timeout).Err(); err != nil {
 			panic(err.Error())
 		}
-		cfg.Cookie.Expires = time.Now().Add(cfg.TimeOut)
 		mgr = &manager{cfg: cfg, store: r}
 
 	default:
