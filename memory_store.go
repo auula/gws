@@ -31,16 +31,13 @@ import (
 
 type memoryStore struct {
 	sync.Mutex
-	sessions map[string]*Session
+	sessions sync.Map
 }
 
 func (m *memoryStore) Reader(s *Session) error {
-	m.Lock()
-	defer m.Unlock()
-
-	if ele, ok := m.sessions[s.ID]; ok {
+	if ele, ok := m.sessions.Load(s.ID); ok {
 		// bug 这个不能直接 s = ele 因为有map地址
-		s.Data = ele.Data
+		s.Data = ele.(*Session).Data
 		return nil
 	}
 	// s = nil
@@ -48,44 +45,20 @@ func (m *memoryStore) Reader(s *Session) error {
 }
 
 func (m *memoryStore) Create(s *Session) error {
-	m.Lock()
-	defer m.Unlock()
-	if m.sessions == nil {
-		m.sessions = make(map[string]*Session, 512*runtime.NumCPU())
-	}
-	if s.Data == nil {
-		s.Data = make(map[string]interface{}, 8)
-	}
-	m.sessions[s.ID] = s
+	m.sessions.Store(s.ID, s)
 	return nil
 }
 
 func (m *memoryStore) Delete(s *Session) error {
-	m.Lock()
-	defer m.Unlock()
-	if _, ok := m.sessions[s.ID]; ok {
-		delete(m.sessions, s.ID)
-		return nil
-	}
-	return fmt.Errorf("id `%s` not find session data", s.ID)
-}
-
-func (m *memoryStore) Remove(s *Session, key string) error {
-	m.Lock()
-	defer m.Unlock()
-	if ele, ok := m.sessions[s.ID]; ok {
-		delete(ele.Data, key)
-		return nil
-	}
-	return fmt.Errorf("id `%s` not find session data", s.ID)
+	m.sessions.Delete(s.ID)
+	return nil
 }
 
 func (m *memoryStore) Update(s *Session) error {
-	m.Lock()
-	defer m.Unlock()
-	if ele, ok := m.sessions[s.ID]; ok {
-		ele.Data = s.Data
-		ele.Expires = time.Now().Add(mgr.cfg.TimeOut)
+	if ele, ok := m.sessions.Load(s.ID); ok {
+		// 为什么是交换data 因为我们不确定上层是否扩容换了地址
+		ele.(*Session).Data = s.Data
+		ele.(*Session).Expires = time.Now().Add(mgr.cfg.TimeOut)
 		//m.sessions[s.ID] = ele
 		return nil
 	}
@@ -96,14 +69,12 @@ func (m *memoryStore) gc() {
 	// recycle your trash every 10 minutes
 	for {
 		time.Sleep(time.Minute * 10)
-		m.Lock()
-		for id, session := range m.sessions {
-			if time.Now().UnixNano() >= session.Expires.UnixNano() {
-				// log.Println("session-id: ", s, "expired.")
-				delete(m.sessions, id)
+		m.sessions.Range(func(key, value interface{}) bool {
+			if time.Now().UnixNano() >= value.(*Session).Expires.UnixNano() {
+				m.sessions.Delete(key)
 			}
-		}
-		m.Unlock()
+			return true
+		})
 		runtime.GC()
 		// log.Println("gc running...")
 	}

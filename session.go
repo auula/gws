@@ -45,7 +45,7 @@ type Session struct {
 	// session超时时间
 	Expires time.Time
 	// 存储数据的map
-	Data map[string]interface{}
+	Data sync.Map
 	_w   http.ResponseWriter
 	// 每个session对应一个cookie
 	Cookie *http.Cookie
@@ -58,7 +58,7 @@ func (s *Session) Get(key string) (interface{}, error) {
 		return nil, err
 	}
 	s.refreshCookie()
-	if ele, ok := s.Data[key]; ok {
+	if ele, ok := s.Data.Load(key); ok {
 		return ele, nil
 	}
 	return nil, fmt.Errorf("key '%s' does not exist", key)
@@ -66,12 +66,7 @@ func (s *Session) Get(key string) (interface{}, error) {
 
 // Set Stores information in the session
 func (s *Session) Set(key string, v interface{}) error {
-	mux.Lock()
-	if s.Data == nil {
-		s.Data = make(map[string]interface{}, 8)
-	}
-	s.Data[key] = v
-	mux.Unlock()
+	s.Data.Store(key, v)
 	s.refreshCookie()
 	return mgr.store.Update(s)
 }
@@ -79,7 +74,8 @@ func (s *Session) Set(key string, v interface{}) error {
 // Remove an element stored in the session
 func (s *Session) Remove(key string) error {
 	s.refreshCookie()
-	return mgr.store.Remove(s, key)
+	s.Data.Delete(key)
+	return mgr.store.Update(s)
 }
 
 // Clean up all data for this session
@@ -90,8 +86,6 @@ func (s *Session) Clean() error {
 
 // Handler Get session data from the Request
 func Handler(w http.ResponseWriter, req *http.Request) *Session {
-	mux.Lock()
-	defer mux.Unlock()
 	// 从请求里面取session
 	var session Session
 	session._w = w
@@ -180,8 +174,6 @@ func (s *Session) MigrateSession() error {
 	return mgr.store.Create(newSession.(*Session))
 }
 
-
-
 // It makes a deep copy by using json.Marshal and json.Unmarshal, so it's not very
 // performant.
 // Make a deep copy from src into dst.
@@ -191,7 +183,7 @@ func (s *Session) MigrateSession() error {
 // https://deepsource.io/gh/higker/sessionx/issue/CRT-A0017/occurrences
 // 2.Incorrectly formatted error string
 // https://deepsource.io/gh/higker/sessionx/issue/SCC-ST1005/occurrences
-func _copy(dst , src interface{}) error {
+func _copy(dst, src interface{}) error {
 	if dst == nil {
 		return fmt.Errorf("dst cannot be nil")
 	}
