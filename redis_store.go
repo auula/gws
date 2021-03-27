@@ -82,9 +82,8 @@ func (rs *redisStore) Remove(s *Session, key string) error {
 	rs.Lock()
 	defer rs.Unlock()
 	// delete it form memory
-	if _, ok := s.Data[key]; ok {
-		delete(s.Data, key)
-	}
+	// https://golang.org/pkg/builtin/#delete
+	delete(s.Data, key)
 	return rs.setValue(s)
 }
 
