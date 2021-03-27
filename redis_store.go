@@ -42,8 +42,6 @@ type redisStore struct {
 
 func (rs *redisStore) Reader(s *Session) error {
 	sid := fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)
-	rs.Lock()
-	defer rs.Unlock()
 	bytes, err := rs.sessions.Get(ctx, sid).Bytes()
 	if err != nil {
 		return err
@@ -59,37 +57,14 @@ func (rs *redisStore) Reader(s *Session) error {
 }
 
 func (rs *redisStore) Create(s *Session) error {
-	rs.Lock()
-	defer rs.Unlock()
-	if s.Data == nil {
-		s.Data = make(map[string]interface{}, 8)
-	}
 	return rs.setValue(s)
 }
 
 func (rs *redisStore) Update(s *Session) error {
-
-	rs.Lock()
-	defer rs.Unlock()
-
-	if s.Data == nil {
-		s.Data = make(map[string]interface{}, 8)
-	}
-	return rs.setValue(s)
-}
-
-func (rs *redisStore) Remove(s *Session, key string) error {
-	rs.Lock()
-	defer rs.Unlock()
-	// delete it form memory
-	// https://golang.org/pkg/builtin/#delete
-	delete(s.Data, key)
 	return rs.setValue(s)
 }
 
 func (rs *redisStore) Delete(s *Session) error {
-	rs.Lock()
-	defer rs.Unlock()
 	return rs.sessions.Del(ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Err()
 }
 

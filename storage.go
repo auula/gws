@@ -27,6 +27,5 @@ type storage interface {
 	Reader(s *Session) error
 	Create(s *Session) error
 	Update(s *Session) error
-	Remove(s *Session, key string) error
 	Delete(s *Session) error
 }
