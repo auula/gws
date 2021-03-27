@@ -184,8 +184,6 @@ func (s *Session) MigrateSession() error {
 	return nil
 }
 
-
-
 // It makes a deep copy by using json.Marshal and json.Unmarshal, so it's not very
 // performant.
 // Make a deep copy from src into dst.
@@ -195,7 +193,7 @@ func (s *Session) MigrateSession() error {
 // https://deepsource.io/gh/higker/sessionx/issue/CRT-A0017/occurrences
 // 2.Incorrectly formatted error string
 // https://deepsource.io/gh/higker/sessionx/issue/SCC-ST1005/occurrences
-func _copy(dst , src interface{}) error {
+func _copy(dst, src interface{}) error {
 	if dst == nil {
 		return fmt.Errorf("dst cannot be nil")
 	}
