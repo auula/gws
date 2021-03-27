@@ -28,7 +28,6 @@ import (
 	"fmt"
 	"github.com/barkimedes/go-deepcopy"
 	"github.com/google/uuid"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -37,20 +36,8 @@ import (
 type method func(f func())
 
 var (
-	mux  sync.RWMutex
-	mgr  *manager
-	lock = map[string]method{
-		"W": func(f func()) {
-			mux.Lock()
-			defer mux.Unlock()
-			f()
-		},
-		"R": func(f func()) {
-			mux.RLock()
-			defer mux.RUnlock()
-			f()
-		},
-	}
+	mux sync.Mutex
+	mgr *manager
 )
 
 type Session struct {
@@ -80,12 +67,12 @@ func (s *Session) Get(key interface{}) (interface{}, error) {
 
 // Set Stores information in the session
 func (s *Session) Set(key, v interface{}) error {
-	lock["W"](func() {
-		if s.Data == nil {
-			s.Data = make(map[interface{}]interface{}, 8)
-		}
-		s.Data[key] = v
-	})
+	mux.Lock()
+	if s.Data == nil {
+		s.Data = make(map[interface{}]interface{}, 8)
+	}
+	s.Data[key] = v
+	mux.Unlock()
 	s.refreshCookie()
 	return mgr.store.Update(s)
 }
@@ -93,9 +80,9 @@ func (s *Session) Set(key, v interface{}) error {
 // Remove an element stored in the session
 func (s *Session) Remove(key interface{}) error {
 	s.refreshCookie()
-	lock["W"](func() {
-		delete(s.Data, key)
-	})
+	mux.Lock()
+	delete(s.Data, key)
+	mux.Unlock()
 	return mgr.store.Update(s)
 }
 
@@ -129,7 +116,6 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 		_ = session.copy(mgr.cfg.Cookie)
 		session.Cookie.Value = session.ID
 		session.Cookie.Expires = session.Expires
-		log.Println(session.Cookie)
 		http.SetCookie(w, session.Cookie)
 	}
 	// 地址一样不行！！！
