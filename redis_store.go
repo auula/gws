@@ -26,7 +26,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"log"
 	"sync"
 )
 
@@ -52,7 +51,7 @@ func (rs *redisStore) Reader(s *Session) error {
 	if err := decoder(bytes, s); err != nil {
 		return err
 	}
-	log.Println("redis read:", s)
+	// log.Println("redis read:", s)
 	return nil
 }
 
