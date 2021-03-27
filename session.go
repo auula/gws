@@ -34,9 +34,23 @@ import (
 	"time"
 )
 
+type method func(f func())
+
 var (
-	mux sync.Mutex
-	mgr *manager
+	mux  sync.RWMutex
+	mgr  *manager
+	lock = map[string]method{
+		"W": func(f func()) {
+			mux.Lock()
+			defer mux.Unlock()
+			f()
+		},
+		"R": func(f func()) {
+			mux.RLock()
+			defer mux.RUnlock()
+			f()
+		},
+	}
 )
 
 type Session struct {
@@ -45,7 +59,7 @@ type Session struct {
 	// session超时时间
 	Expires time.Time
 	// 存储数据的map
-	Data sync.Map
+	Data map[interface{}]interface{}
 	_w   http.ResponseWriter
 	// 每个session对应一个cookie
 	Cookie *http.Cookie
@@ -53,12 +67,12 @@ type Session struct {
 
 // Get Retrieves the stored element data from the session via the key
 func (s *Session) Get(key interface{}) (interface{}, error) {
-	//err := mgr.store.Reader(s)
-	//if err != nil {
-	//	return nil, err
-	//}
+	err := mgr.store.Read(s)
+	if err != nil {
+		return nil, err
+	}
 	s.refreshCookie()
-	if ele, ok := s.Data.Load(key); ok {
+	if ele, ok := s.Data[key]; ok {
 		return ele, nil
 	}
 	return nil, fmt.Errorf("key '%s' does not exist", key)
@@ -66,7 +80,12 @@ func (s *Session) Get(key interface{}) (interface{}, error) {
 
 // Set Stores information in the session
 func (s *Session) Set(key, v interface{}) error {
-	s.Data.Store(key, v)
+	lock["W"](func() {
+		if s.Data == nil {
+			s.Data = make(map[interface{}]interface{}, 8)
+		}
+		s.Data[key] = v
+	})
 	s.refreshCookie()
 	return mgr.store.Update(s)
 }
@@ -74,7 +93,9 @@ func (s *Session) Set(key, v interface{}) error {
 // Remove an element stored in the session
 func (s *Session) Remove(key interface{}) error {
 	s.refreshCookie()
-	s.Data.Delete(key)
+	lock["R"](func() {
+		delete(s.Data, key)
+	})
 	return mgr.store.Update(s)
 }
 
@@ -96,7 +117,7 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	// ID通过编码之后长度是73位
 	if len(cookie.Value) >= 73 {
 		session.ID = cookie.Value
-		if mgr.store.Reader(&session) != nil {
+		if mgr.store.Read(&session) != nil {
 			return createSession(w, cookie, &session)
 		}
 
@@ -167,15 +188,18 @@ func (s *Session) MigrateSession() error {
 		return errors.New("migrate session make a deep copy from src into dst failed")
 	}
 	newSession.(*Session).ID = s.ID
-	newSession.(*Session).Data = s.Data
 	newSession.(*Session).Cookie.Value = s.ID
 	newSession.(*Session).Expires = time.Now().Add(mgr.cfg.TimeOut)
 	newSession.(*Session)._w = s._w
 	newSession.(*Session).refreshCookie()
 	// 新内存开始持久化
+	// log.Printf("old session pointer:%p \n", s)
+	// log.Printf("new session pointer:%p \n", newSession.(*Session))
 	//log.Println("MigrateSession:", newSession.(*Session))
 	return mgr.store.Create(newSession.(*Session))
 }
+
+// 为什么选择使用Data作为k v存储 而不是像持久化存储一样用sync.map
 
 // It makes a deep copy by using json.Marshal and json.Unmarshal, so it's not very
 // performant.
@@ -202,4 +226,10 @@ func _copy(dst, src interface{}) error {
 		return fmt.Errorf("unable to unmarshal into dst: %s", err)
 	}
 	return nil
+}
+
+func _lock(f func()) {
+	mux.Lock()
+	defer mux.Unlock()
+	f()
 }

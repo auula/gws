@@ -34,7 +34,7 @@ type memoryStore struct {
 	sync.Map
 }
 
-func (m *memoryStore) Reader(s *Session) error {
+func (m *memoryStore) Read(s *Session) error {
 	if ele, ok := m.Load(s.ID); ok {
 		// bug 这个不能直接 s = ele 因为有map地址
 		s.Data = ele.(*Session).Data

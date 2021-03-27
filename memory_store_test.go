@@ -60,7 +60,7 @@ func TestALL(t *testing.T) {
 	v["v"] = "test"
 	s.Data = v
 	m.Update(s)
-	err := m.Reader(s)
+	err := m.Read(s)
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -70,7 +70,7 @@ func TestALL(t *testing.T) {
 	if err != nil {
 		t.Error(err.Error())
 	}
-	err = m.Reader(s)
+	err = m.Read(s)
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -78,7 +78,7 @@ func TestALL(t *testing.T) {
 	t.Log("Remove session = ", s)
 
 	m.Delete(s)
-	err = m.Reader(s)
+	err = m.Read(s)
 	if err != nil {
 		t.Log("Delete session successful ")
 	}

@@ -39,7 +39,7 @@ type redisStore struct {
 	sessions *redis.Client
 }
 
-func (rs *redisStore) Reader(s *Session) error {
+func (rs *redisStore) Read(s *Session) error {
 	sid := fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)
 	bytes, err := rs.sessions.Get(ctx, sid).Bytes()
 	if err != nil {
