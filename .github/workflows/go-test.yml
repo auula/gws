@@ -37,7 +37,7 @@ jobs:
 
 
     - name: 代码健康检测
-      run: go test ./... -race -coverprofile=coverage.txt -covermode=atomic -v
+      run: go test --run=TestALL ./... -race -coverprofile=coverage.txt -covermode=atomic -v
 
 
 
