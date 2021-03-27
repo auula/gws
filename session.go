@@ -188,7 +188,10 @@ func (s *Session) MigrateSession() error {
 // performant.
 
 // Make a deep copy from src into dst.
-func _copy(dst interface{}, src interface{}) error {
+
+// Types of function parameters can be combined
+// https://deepsource.io/gh/higker/sessionx/issue/CRT-A0017/occurrences
+func _copy(dst , src interface{}) error {
 	if dst == nil {
 		return fmt.Errorf("dst cannot be nil")
 	}
