@@ -69,6 +69,7 @@ func TestALL(t *testing.T) {
 	if err != nil {
 		t.Log("Delete session successful ")
 	}
+
 }
 
 // https://my.oschina.net/solate/blog/3034188

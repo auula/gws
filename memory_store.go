@@ -57,7 +57,7 @@ func (m *memoryStore) Update(s *Session) error {
 	if ele, ok := m.Load(s.ID); ok {
 		// 为什么是交换data 因为我们不确定上层是否扩容换了地址
 		ele.(*Session).Data = s.Data
-		ele.(*Session).Expires = time.Now().Add(mgr.cfg.TimeOut)
+		ele.(*Session).Expires = s.Expires
 		//m.sessions[s.ID] = ele
 		return nil
 	}
