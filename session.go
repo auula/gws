@@ -177,11 +177,7 @@ func (s *Session) MigrateSession() error {
 	}
 	s.refreshCookie()
 	// 新内存开始持久化
-	err = mgr.store.Create(newSession.(*Session))
-	if err != nil {
-		return err
-	}
-	return nil
+	return mgr.store.Create(newSession.(*Session))
 }
 
 
