@@ -184,13 +184,17 @@ func (s *Session) MigrateSession() error {
 	return nil
 }
 
+
+
 // It makes a deep copy by using json.Marshal and json.Unmarshal, so it's not very
 // performant.
-
 // Make a deep copy from src into dst.
 
-// Types of function parameters can be combined
+// fix bug:
+// 1.Types of function parameters can be combined
 // https://deepsource.io/gh/higker/sessionx/issue/CRT-A0017/occurrences
+// 2.Incorrectly formatted error string
+// https://deepsource.io/gh/higker/sessionx/issue/SCC-ST1005/occurrences
 func _copy(dst , src interface{}) error {
 	if dst == nil {
 		return fmt.Errorf("dst cannot be nil")
@@ -200,11 +204,11 @@ func _copy(dst , src interface{}) error {
 	}
 	bytes, err := json.Marshal(src)
 	if err != nil {
-		return fmt.Errorf("Unable to marshal src: %s", err)
+		return fmt.Errorf("unable to marshal src: %s", err)
 	}
 	err = json.Unmarshal(bytes, dst)
 	if err != nil {
-		return fmt.Errorf("Unable to unmarshal into dst: %s", err)
+		return fmt.Errorf("unable to unmarshal into dst: %s", err)
 	}
 	return nil
 }
