@@ -39,8 +39,7 @@ func encoder(s *Session) ([]byte, error) {
 func decoder(v []byte, s *Session) error {
 	reader := bytes.NewReader(v)
 	dec := gob.NewDecoder(reader)
-	if err := dec.Decode(s); err != nil {
-		return err
-	}
-	return nil
+	// Redundant error checking detected
+	// https://deepsource.io/gh/higker/sessionx/issue/RVV-B0005/occurrences
+	return dec.Decode(s)
 }
