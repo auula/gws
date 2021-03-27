@@ -1,5 +1,5 @@
 # sessionx
-Golang of session library.
+Session library for Golang.
 
 [![Go](https://github.com/higker/sessionx/actions/workflows/go-test.yml/badge.svg?event=push)](https://github.com/higker/sessionx/actions/workflows/go-test.yml)
 [![codecov](https://codecov.io/gh/higker/sessionx/branch/master/graph/badge.svg?token=btbed5BUUZ)](https://codecov.io/gh/higker/sessionx)
