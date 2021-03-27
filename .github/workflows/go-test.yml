@@ -32,14 +32,11 @@ jobs:
 
     - name: 覆盖率扫描
         run: |
-          # Generate coverage report
-               go test -coverprofile=cover.out
+          go test -coverprofile=cover.out
 
-          # Install deepsource CLI
-               curl https://deepsource.io/cli | sh
+          curl https://deepsource.io/cli | sh
 
-          # From the root directory, run the report coverage command
-               ./bin/deepsource report --analyzer test-coverage --key go --value-file ./cover.out
+          ./bin/deepsource report --analyzer test-coverage --key go --value-file ./cover.out
 
         env:
           DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
