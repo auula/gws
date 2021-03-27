@@ -25,7 +25,7 @@ jobs:
       run: go mod tidy 
 
     - name: 测试存储
-      run: go test -v --run=TestALL
+      run: go test -v
 
     - name: 持续30秒benchmark测试
       run: go test -bench=. -benchtime=30s -run=none
@@ -37,7 +37,7 @@ jobs:
 
 
     - name: 代码健康检测
-      run: go test --run=TestALL ./... -race -coverprofile=coverage.txt -covermode=atomic -v
+      run: go test  ./... -race -coverprofile=coverage.txt -covermode=atomic -v
 
 
 

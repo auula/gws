@@ -36,8 +36,20 @@ import (
 type method func(f func())
 
 var (
-	mux sync.Mutex
-	mgr *manager
+	rwm  sync.RWMutex
+	mgr  *manager
+	lock = map[string]method{
+		"W": func(f func()) {
+			rwm.Lock()
+			defer rwm.Unlock()
+			f()
+		},
+		"R": func(f func()) {
+			rwm.RLock()
+			defer rwm.RUnlock()
+			f()
+		},
+	}
 )
 
 type Session struct {
@@ -67,12 +79,14 @@ func (s *Session) Get(key interface{}) (interface{}, error) {
 
 // Set Stores information in the session
 func (s *Session) Set(key, v interface{}) error {
-	mux.Lock()
-	if s.Data == nil {
-		s.Data = make(map[interface{}]interface{}, 8)
-	}
-	s.Data[key] = v
-	mux.Unlock()
+
+	lock["W"](func() {
+		if s.Data == nil {
+			s.Data = make(map[interface{}]interface{}, 8)
+		}
+		s.Data[key] = v
+	})
+
 	s.refreshCookie()
 	return mgr.store.Update(s)
 }
@@ -80,9 +94,11 @@ func (s *Session) Set(key, v interface{}) error {
 // Remove an element stored in the session
 func (s *Session) Remove(key interface{}) error {
 	s.refreshCookie()
-	mux.Lock()
-	delete(s.Data, key)
-	mux.Unlock()
+
+	lock["R"](func() {
+		delete(s.Data, key)
+	})
+
 	return mgr.store.Update(s)
 }
 
@@ -212,10 +228,4 @@ func _copy(dst, src interface{}) error {
 		return fmt.Errorf("unable to unmarshal into dst: %s", err)
 	}
 	return nil
-}
-
-func _lock(f func()) {
-	mux.Lock()
-	defer mux.Unlock()
-	f()
 }

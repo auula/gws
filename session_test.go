@@ -10,38 +10,22 @@ import (
 	"testing"
 )
 
-var (
-	rwm  sync.RWMutex
-	lock = map[string]method{
-		"W": func(f func()) {
-			rwm.Lock()
-			defer rwm.Unlock()
-			f()
-		},
-		"R": func(f func()) {
-			rwm.RLock()
-			defer rwm.RUnlock()
-			f()
-		},
-	}
-)
-
 func TestSessionLock(t *testing.T) {
 	var count = 0
 	var wait sync.WaitGroup
 	wait.Add(3)
 	go lock["W"](func() {
-		count += 1
-		t.Log(count)
+		count = count + 1
+		wait.Done()
 	})
 	go lock["W"](func() {
-		count += 1
-		t.Log(count)
+		count = count + 1
+		wait.Done()
 	})
 	go lock["W"](func() {
-		count += 1
-		t.Log(count)
+		count = count + 1
+		wait.Done()
 	})
-	wait.Done()
+	wait.Wait()
 	t.Log(count)
 }
