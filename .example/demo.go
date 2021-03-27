@@ -20,7 +20,6 @@ var (
 		Cookie: &http.Cookie{
 			Name:     sessionx.SessionKey,
 			Path:     "/",
-			Expires:  time.Now().Add(time.Minute * 30), // TimeOut
 			Secure:   false,
 			HttpOnly: true,
 		},
@@ -28,8 +27,7 @@ var (
 )
 
 func main() {
-	sessionx.New(sessionx.R, cfg)
-
+	sessionx.New(sessionx.M, sessionx.DefaultCfg)
 	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
 		session.Set("K", time.Now().Format("2006 01-02 15:04:05"))

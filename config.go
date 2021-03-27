@@ -27,6 +27,19 @@ import (
 	"time"
 )
 
+var (
+	// Memory storage type config
+	DefaultCfg = &Configs{
+		TimeOut: time.Minute * 30,
+		Cookie: &http.Cookie{
+			Name:     SessionKey,
+			Path:     "/",
+			Secure:   false,
+			HttpOnly: true,
+		},
+	}
+)
+
 // Configs session option
 type Configs struct {
 	Cookie *http.Cookie
