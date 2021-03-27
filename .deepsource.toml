@@ -8,6 +8,8 @@ exclude_patterns = [".github/**"]
 name = "go"
 enabled = true
 
+name = "test-coverage"
+enabled = true
   [analyzers.meta]
   import_paths = ["github.com/higker/sessionx"]
 
