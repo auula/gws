@@ -5,4 +5,4 @@ Golang of session library.
 [![codecov](https://codecov.io/gh/higker/sessionx/branch/master/graph/badge.svg?token=btbed5BUUZ)](https://codecov.io/gh/higker/sessionx)
 [![DeepSource](https://deepsource.io/gh/higker/sessionx.svg/?label=active+issues&show_trend=true)](https://deepsource.io/gh/higker/sessionx/?ref=repository-badge)
 [![DeepSource](https://deepsource.io/gh/higker/sessionx.svg/?label=resolved+issues&show_trend=true)](https://deepsource.io/gh/higker/sessionx/?ref=repository-badge)
-<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-4EB1BA.svg?style=flat-square"></a>
+[![License](https://img.shields.io/badge/license-MIT-db5149.svg)](https://github.com/higker/sessionx/blob/master/LICENSE)
