@@ -1,0 +1,3 @@
+ignore:
+  - "doc.go"       # wildcards accepted
+  - "*_test.go"         # glob accepted
