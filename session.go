@@ -20,6 +20,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// annotation:
+//1. support redis storage.
+//2. support memory storage.
+//3. defend against man-in-the-middle attacks
+
 package sessionx
 
 import (
