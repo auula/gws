@@ -59,14 +59,14 @@ type Session struct {
 	// session超时时间
 	Expires time.Time
 	// 存储数据的map
-	Data map[interface{}]interface{}
+	Data map[string]interface{}
 	_w   http.ResponseWriter
 	// 每个session对应一个cookie
 	Cookie *http.Cookie
 }
 
 // Get Retrieves the stored element data from the session via the key
-func (s *Session) Get(key interface{}) (interface{}, error) {
+func (s *Session) Get(key string) (interface{}, error) {
 	err := mgr.store.Read(s)
 	if err != nil {
 		return nil, err
@@ -79,11 +79,11 @@ func (s *Session) Get(key interface{}) (interface{}, error) {
 }
 
 // Set Stores information in the session
-func (s *Session) Set(key, v interface{}) error {
+func (s *Session) Set(key string, v interface{}) error {
 
 	lock["W"](func() {
 		if s.Data == nil {
-			s.Data = make(map[interface{}]interface{}, 8)
+			s.Data = make(map[string]interface{}, 8)
 		}
 		s.Data[key] = v
 	})
@@ -93,7 +93,7 @@ func (s *Session) Set(key, v interface{}) error {
 }
 
 // Remove an element stored in the session
-func (s *Session) Remove(key interface{}) error {
+func (s *Session) Remove(key string) error {
 	s.refreshCookie()
 
 	lock["R"](func() {

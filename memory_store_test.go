@@ -43,7 +43,7 @@ func TestMain(t *testing.M) {
 
 	s = new(Session)
 	s.ID = uuid.New().String()
-	s.Data = make(map[interface{}]interface{}, 8)
+	s.Data = make(map[string]interface{}, 8)
 	s.Cookie = _testCfg.Cookie
 	s.Expires = time.Now().Add(_testCfg.TimeOut)
 	t.Run()
@@ -54,7 +54,7 @@ func TestALL(t *testing.T) {
 	m.Create(s)
 	t.Log("Create session = ", s)
 
-	v := make(map[interface{}]interface{})
+	v := make(map[string]interface{})
 	v["v"] = "test"
 	s.Data = v
 	m.Update(s)
