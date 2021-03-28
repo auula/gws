@@ -124,16 +124,12 @@ func Handler(w http.ResponseWriter, req *http.Request) *Session {
 		if mgr.store.Read(&session) != nil {
 			return createSession(w, cookie, &session)
 		}
-
-		// 防止web服务器重启之后redis会话数据还在
-		// 但是浏览器cookie没有更新
-		// 重新刷新cookie
-
+		// 防止web服务器重启之后redis会话数据还在，但是浏览器cookie没有更新，重新刷新cookie
 		// 存在指针一致问题，这样操作还是一块内存，所有我们需要复制副本
 		_ = session.copy(mgr.cfg.Cookie)
 		session.Cookie.Value = session.ID
 		session.Cookie.Expires = session.Expires
-		http.SetCookie(w, session.Cookie)
+		session.refreshCookie()
 	}
 	// 地址一样不行！！！
 	// log.Printf("mgr.cfg.Cookie pointer:%p \n", mgr.cfg.Cookie)
@@ -152,7 +148,8 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	session.Cookie.Expires = session.Expires
 
 	_ = mgr.store.Create(session)
-	http.SetCookie(w, session.Cookie)
+
+	session.refreshCookie()
 	return session
 }
 
@@ -160,11 +157,6 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 func (s *Session) refreshCookie() {
 	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
 	s.Cookie.Expires = s.Expires
-	// 这里不是使用指针
-	// 因为这里我们支持redis 如果web服务器重启了
-	// 那么session数据在内存里清空
-	// 从redis读取的数据反序列化地址和重新启动的不一样
-	// 所有直接数据拷贝
 	http.SetCookie(s._w, s.Cookie)
 }
 
