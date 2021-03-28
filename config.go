@@ -23,6 +23,7 @@
 package sessionx
 
 import (
+	"github.com/go-playground/validator/v10"
 	"net/http"
 	"time"
 )
@@ -30,41 +31,65 @@ import (
 var (
 	// Memory storage type config
 	DefaultCfg = &Configs{
-		TimeOut: time.Minute * 30,
-		Cookie: &http.Cookie{
-			Name:     SessionKey,
-			Path:     "/",
-			Secure:   false,
-			HttpOnly: true,
-		},
+		TimeOut:  time.Minute * 30,
+		Domain:   "",
+		Path:     "/",
+		Name:     SessionKey,
+		Secure:   false,
+		HttpOnly: true,
 	}
 )
 
 // Configs session option
 type Configs struct {
-	Cookie *http.Cookie
-
-	// Domain string `json:"domain" validate:"required"`
-
-	// Path string `json:"Path" validate:"required"`
-
-	// Secure string `json:"secure" validate:"required"`
-
-	// HttpOnly bool `json:"http_only" validate:"required"`
 
 	// sessionID value encryption key
 	//EncryptedKey string `json:"encrypted_key" validate:"required,len=16"`
 
 	// redis server ip
-	RedisAddr string `json:"redis_addr" validate:"required"`
+	RedisAddr string `json:"redis_addr" validate:"required,redis"`
 	// redis auth password
-	RedisPassword string `json:"redis_password" validate:"required"`
+	RedisPassword string `json:"redis_password" validate:"required,redis"`
 	// redis key prefix
-	RedisKeyPrefix string `json:"redis_key_prefix" validate:"required"`
+	RedisKeyPrefix string `json:"redis_key_prefix" validate:"required,redis"`
 	// redis db
-	RedisDB int `json:"redis_db" validate:"gte=0,lte=15"`
+	RedisDB int `json:"redis_db" validate:"gte=0,lte=15,redis"`
 	// the life cycle of a session without operations
-	TimeOut time.Duration `json:"time_out" validate:"required"`
+	TimeOut time.Duration `json:"time_out" validate:"required,redis"`
 	// connection pool size
-	PoolSize uint8 `json:"pool_size" validate:"gte=5,lte=100"`
+	PoolSize uint8 `json:"pool_size" validate:"gte=5,lte=100,redis"`
+
+	Domain string `json:"domain" validate:"required"`
+
+	Path string `json:"Path" validate:"required"`
+
+	Secure bool `json:"secure" validate:"required" `
+
+	HttpOnly bool `json:"http_only" validate:"required"`
+
+	Name string `json:"name" validate:"required"`
+
+	_cookie *http.Cookie
+}
+
+func excludeRedisTag(fl validator.FieldLevel) bool {
+	return fl.Field().String() == ""
+}
+
+// Parse config parameter
+func (c *Configs) Parse() *Configs {
+	c._cookie = &http.Cookie{
+		Domain:   c.Domain,
+		Path:     c.Path,
+		Name:     c.Name,
+		Secure:   c.Secure,
+		HttpOnly: c.HttpOnly,
+		Expires:  time.Now().Add(c.TimeOut),
+	}
+	return c
+}
+
+// Reload loading config
+func (c *Configs) Reload(cookie *http.Cookie) {
+	c._cookie = cookie
 }

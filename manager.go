@@ -48,21 +48,27 @@ type manager struct {
 
 func New(t storeType, cfg *Configs) {
 
+	// parameter verify
+	validate := validator.New()
+
 	switch t {
 	case M:
-		// init memory storage
-		m := new(memoryStore)
-		go m.gc()
-		mgr = &manager{cfg: cfg, store: m}
 
-	case R:
-
-		// parameter verify
-		validate := validator.New()
+		validate.RegisterValidation("redis", excludeRedisTag)
 		if err := validate.Struct(cfg); err != nil {
 			panic(err.Error())
 		}
 
+		// init memory storage
+		m := new(memoryStore)
+		go m.gc()
+		mgr = &manager{cfg: cfg.Parse(), store: m}
+
+	case R:
+
+		if err := validate.Struct(cfg); err != nil {
+			panic(err.Error())
+		}
 		// init redis storage
 		r := new(redisStore)
 		r.sessions = redis.NewClient(&redis.Options{
@@ -78,7 +84,7 @@ func New(t storeType, cfg *Configs) {
 		if err := r.sessions.Ping(timeout).Err(); err != nil {
 			panic(err.Error())
 		}
-		mgr = &manager{cfg: cfg, store: r}
+		mgr = &manager{cfg: cfg.Parse(), store: r}
 
 	default:
 		panic("not implement store type")

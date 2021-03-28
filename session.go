@@ -54,14 +54,14 @@ var (
 )
 
 type Session struct {
-	// 会话ID
+	// sessionId
 	ID string
-	// session超时时间
+	// session timeout
 	Expires time.Time
-	// 存储数据的map
+	// map to store data
 	Data map[string]interface{}
 	_w   http.ResponseWriter
-	// 每个session对应一个cookie
+	// each session corresponds to a cookie
 	Cookie *http.Cookie
 }
 
@@ -96,7 +96,7 @@ func (s *Session) Set(key string, v interface{}) error {
 func (s *Session) Remove(key string) error {
 	s.refreshCookie()
 
-	lock["R"](func() {
+	lock["W"](func() {
 		delete(s.Data, key)
 	})
 
@@ -111,29 +111,28 @@ func (s *Session) Clean() error {
 
 // Handler Get session data from the Request
 func Handler(w http.ResponseWriter, req *http.Request) *Session {
-	// 从请求里面取session
+
+	// Take the session from the request
 	var session Session
 	session._w = w
-	cookie, err := req.Cookie(mgr.cfg.Cookie.Name)
+	cookie, err := req.Cookie(mgr.cfg._cookie.Name)
 	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
 		return createSession(w, cookie, &session)
 	}
-	// ID通过编码之后长度是73位
+
+	// The length of the ID after being encoded is 73 bits
 	if len(cookie.Value) >= 73 {
 		session.ID = cookie.Value
 		if mgr.store.Read(&session) != nil {
 			return createSession(w, cookie, &session)
 		}
-		// 防止web服务器重启之后redis会话数据还在，但是浏览器cookie没有更新，重新刷新cookie
-		// 存在指针一致问题，这样操作还是一块内存，所有我们需要复制副本
-		_ = session.copy(mgr.cfg.Cookie)
+
+		session.copy(mgr.cfg._cookie)
 		session.Cookie.Value = session.ID
 		session.Cookie.Expires = session.Expires
 		session.refreshCookie()
 	}
-	// 地址一样不行！！！
-	// log.Printf("mgr.cfg.Cookie pointer:%p \n", mgr.cfg.Cookie)
-	// log.Printf("session.cookie pointer:%p \n", session.Cookie)
+
 	return &session
 }
 
@@ -143,17 +142,17 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	session.Expires = time.Now().Add(mgr.cfg.TimeOut)
 
 	// 重置配置cookie模板
-	session.copy(mgr.cfg.Cookie)
+	session.copy(mgr.cfg._cookie)
 	session.Cookie.Value = session.ID
 	session.Cookie.Expires = session.Expires
 
-	_ = mgr.store.Create(session)
+	mgr.store.Create(session)
 
 	session.refreshCookie()
 	return session
 }
 
-// 刷新cookie 会话只要有操作就重置会话生命周期
+// refreshCookie: Refresh the cookie session as long as there is an operation to reset the session life cycle
 func (s *Session) refreshCookie() {
 	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
 	s.Cookie.Expires = s.Expires
@@ -175,26 +174,20 @@ func (s *Session) copy(cookie *http.Cookie) error {
 }
 
 func (s *Session) MigrateSession() error {
-	// 迁移到新内存 防止会话一致引发安全问题
-	// 这个问题的根源在 sessionid 不变，如果用户在未登录时拿到的是一个 sessionid，登录之后服务端给用户重新换一个 sessionid，就可以防止会话固定攻击了。
+
 	s.ID = generateUUID()
 	newSession, err := deepcopy.Anything(s)
 	if err != nil {
 		return errors.New("migrate session make a deep copy from src into dst failed")
 	}
+
 	newSession.(*Session).ID = s.ID
 	newSession.(*Session).Cookie.Value = s.ID
 	newSession.(*Session).Expires = time.Now().Add(mgr.cfg.TimeOut)
-	newSession.(*Session)._w = s._w
 	newSession.(*Session).refreshCookie()
-	// 新内存开始持久化
-	// log.Printf("old session pointer:%p \n", s)
-	// log.Printf("new session pointer:%p \n", newSession.(*Session))
-	//log.Println("MigrateSession:", newSession.(*Session))
+
 	return mgr.store.Create(newSession.(*Session))
 }
-
-// 为什么选择使用Data作为k v存储 而不是像持久化存储一样用sync.map
 
 // It makes a deep copy by using json.Marshal and json.Unmarshal, so it's not very
 // performant.

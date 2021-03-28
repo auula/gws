@@ -34,7 +34,6 @@ var (
 	ctx = context.Background()
 )
 
-// 关闭之后 redis有数据  但是获取2次就没有数据了
 type redisStore struct {
 	sync.Mutex
 	sessions *redis.Client

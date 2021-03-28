@@ -17,13 +17,11 @@ var (
 		RedisPassword:  "redis.nosql",
 		RedisKeyPrefix: sessionx.SessionKey,
 		PoolSize:       100,
-		Cookie: &http.Cookie{
-			Name:     sessionx.SessionKey,
-			Path:     "/",
-			Secure:   false,
-			Expires:  time.Now().Add(time.Minute * 30),
-			HttpOnly: true,
-		},
+		Domain:         "",
+		Name:           sessionx.SessionKey,
+		Path:           "/",
+		Secure:         false,
+		HttpOnly:       true,
 	}
 )
 

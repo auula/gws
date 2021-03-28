@@ -6,7 +6,6 @@
 package sessionx
 
 import (
-	"net/http"
 	"runtime"
 	"testing"
 	"time"
@@ -22,15 +21,12 @@ var (
 		RedisDB:        0,
 		RedisPassword:  "redis.nosql",
 		RedisKeyPrefix: SessionKey,
-
-		Cookie: &http.Cookie{
-			Name:     SessionKey,
-			Path:     "/",
-			Expires:  time.Now().Add(time.Minute * 30),
-			Secure:   false,
-			HttpOnly: true,
-			MaxAge:   60 * 30,
-		},
+		PoolSize:       100,
+		Domain:         "",
+		Name:           SessionKey,
+		Path:           "/",
+		Secure:         false,
+		HttpOnly:       true,
 	}
 	m *memoryStore
 	s *Session
@@ -44,7 +40,7 @@ func TestMain(t *testing.M) {
 	s = new(Session)
 	s.ID = uuid.New().String()
 	s.Data = make(map[string]interface{}, 8)
-	s.Cookie = _testCfg.Cookie
+	s.Cookie = _testCfg._cookie
 	s.Expires = time.Now().Add(_testCfg.TimeOut)
 	t.Run()
 }
