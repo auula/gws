@@ -25,8 +25,9 @@ package sessionx
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
 	"sync"
+
+	"github.com/go-redis/redis/v8"
 )
 
 var (
@@ -72,6 +73,5 @@ func (rs *redisStore) setValue(s *Session) error {
 	if err != nil {
 		return err
 	}
-	err = rs.sessions.Set(ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, mgr.cfg.TimeOut).Err()
-	return err
+	return rs.sessions.Set(ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, mgr.cfg.TimeOut).Err()
 }

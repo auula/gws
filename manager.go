@@ -24,9 +24,10 @@ package sessionx
 
 import (
 	"context"
+	"time"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/go-redis/redis/v8"
-	"time"
 )
 
 type storeType uint8

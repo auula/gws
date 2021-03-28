@@ -26,11 +26,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/barkimedes/go-deepcopy"
-	"github.com/google/uuid"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/barkimedes/go-deepcopy"
+	"github.com/google/uuid"
 )
 
 type method func(f func())
@@ -144,13 +145,13 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	// init session parameter
 	session.ID = generateUUID()
 	session.Expires = time.Now().Add(mgr.cfg.TimeOut)
-	_ = mgr.store.Create(session)
 
 	// 重置配置cookie模板
 	session.copy(mgr.cfg.Cookie)
 	session.Cookie.Value = session.ID
 	session.Cookie.Expires = session.Expires
 
+	_ = mgr.store.Create(session)
 	http.SetCookie(w, session.Cookie)
 	return session
 }
