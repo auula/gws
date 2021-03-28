@@ -17,10 +17,10 @@ var (
 		RedisPassword:  "redis.nosql",
 		RedisKeyPrefix: sessionx.SessionKey,
 		PoolSize:       100,
-		Domain:         "",
+		Domain:         "localhost:8080",
 		Name:           sessionx.SessionKey,
 		Path:           "/",
-		Secure:         false,
+		Secure:         true,
 		HttpOnly:       true,
 	}
 )

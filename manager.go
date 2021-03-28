@@ -53,7 +53,6 @@ func New(t storeType, cfg *Configs) {
 
 	switch t {
 	case M:
-
 		validate.RegisterValidation("redis", excludeRedisTag)
 		if err := validate.Struct(cfg); err != nil {
 			panic(err.Error())
@@ -65,7 +64,7 @@ func New(t storeType, cfg *Configs) {
 		mgr = &manager{cfg: cfg.Parse(), store: m}
 
 	case R:
-
+		validate.RegisterValidation("redis", includeRedisTag)
 		if err := validate.Struct(cfg); err != nil {
 			panic(err.Error())
 		}

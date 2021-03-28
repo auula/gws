@@ -184,6 +184,7 @@ func (s *Session) MigrateSession() error {
 	newSession.(*Session).ID = s.ID
 	newSession.(*Session).Cookie.Value = s.ID
 	newSession.(*Session).Expires = time.Now().Add(mgr.cfg.TimeOut)
+	newSession.(*Session)._w = s._w
 	newSession.(*Session).refreshCookie()
 
 	return mgr.store.Create(newSession.(*Session))

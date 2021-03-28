@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -34,14 +35,21 @@ var (
 	ctx = context.Background()
 )
 
+// redisStore redis storage implement
 type redisStore struct {
 	sync.Mutex
 	sessions *redis.Client
 }
 
+// Read: read data
 func (rs *redisStore) Read(s *Session) error {
+
+	// set connection timeout
+	timeout, cancelFunc := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancelFunc()
+
 	sid := fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)
-	bytes, err := rs.sessions.Get(ctx, sid).Bytes()
+	bytes, err := rs.sessions.Get(timeout, sid).Bytes()
 	if err != nil {
 		return err
 	}
@@ -55,22 +63,33 @@ func (rs *redisStore) Read(s *Session) error {
 	return nil
 }
 
+// Create: create session data
 func (rs *redisStore) Create(s *Session) error {
 	return rs.setValue(s)
 }
 
+// Update: updated session data
 func (rs *redisStore) Update(s *Session) error {
 	return rs.setValue(s)
 }
 
+// Remove: remove session data
 func (rs *redisStore) Remove(s *Session) error {
-	return rs.sessions.Del(ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Err()
+	// set connection timeout
+	timeout, cancelFunc := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancelFunc()
+	return rs.sessions.Del(timeout, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID)).Err()
 }
 
+// setValue: set session data value
 func (rs *redisStore) setValue(s *Session) error {
 	bytes, err := encoder(s)
 	if err != nil {
 		return err
 	}
-	return rs.sessions.Set(ctx, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, mgr.cfg.TimeOut).Err()
+	// set connection timeout
+	timeout, cancelFunc := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancelFunc()
+
+	return rs.sessions.Set(timeout, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, mgr.cfg.TimeOut).Err()
 }

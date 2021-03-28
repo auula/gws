@@ -59,21 +59,31 @@ type Configs struct {
 	// connection pool size
 	PoolSize uint8 `json:"pool_size" validate:"gte=5,lte=100,redis"`
 
-	Domain string `json:"domain" validate:"required"`
+	// cookie domain
+	Domain string `json:"domain" `
 
+	// cookie domain url path
 	Path string `json:"Path" validate:"required"`
 
-	Secure bool `json:"secure" validate:"required" `
+	// the browser can only use the cookie through a secure encrypted connection
+	Secure bool `json:"secure" `
 
+	// not allow javascript operating
 	HttpOnly bool `json:"http_only" validate:"required"`
 
+	// cookie key name
 	Name string `json:"name" validate:"required"`
 
+	// cookie config template
 	_cookie *http.Cookie
 }
 
 func excludeRedisTag(fl validator.FieldLevel) bool {
 	return fl.Field().String() == ""
+}
+
+func includeRedisTag(fl validator.FieldLevel) bool {
+	return fl.Field().String() != ""
 }
 
 // Parse config parameter
