@@ -86,16 +86,20 @@ func (c *Configs) VerifyRedis() error {
 	if err := c.VerifyMemory(); err != nil {
 		return fmt.Errorf("verify config param fail: %s", err.Error())
 	}
+	// check ip address
 	match, _ := regexp.MatchString(IPAndPortRegex, c.RedisAddr)
 	if !match {
 		return errors.New("redis ip address format error")
 	}
+	// redis redis key prefix
 	if len(c.RedisKeyPrefix) <= 0 {
 		return errors.New("redis key prefix required")
 	}
+	// check redis database number index
 	if c.RedisDB < 0 || c.RedisDB > 15 {
 		return errors.New("redis database number index not exist")
 	}
+	// check redis pool size
 	if c.PoolSize < 1 || c.PoolSize > 100 {
 		return errors.New("redis pool size range is 1 - 100")
 	}
@@ -104,15 +108,19 @@ func (c *Configs) VerifyRedis() error {
 
 // VerifyMemory config parameter
 func (c *Configs) VerifyMemory() error {
-	if c.TimeOut.Nanoseconds() <= 0 {
+	// check time out
+	if c.TimeOut <= 0 {
 		c.TimeOut = time.Minute * 30
 	}
+	// check cookie path
 	if c.Path == "" {
 		return errors.New("cookie path not exist")
 	}
+	// check cookie key name
 	if c.Name == "" {
 		return errors.New("cookie key name not exist")
 	}
+	// no allow javascript operating
 	c.HttpOnly = true
 	return nil
 }
