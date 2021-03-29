@@ -180,6 +180,8 @@ func (s *Session) copy(cookie *http.Cookie) error {
 
 func (s *Session) MigrateSession() error {
 
+	mgr.store.Remove(s)
+
 	s.ID = generateUUID()
 	newSession, err := deepcopy.Anything(s)
 	if err != nil {

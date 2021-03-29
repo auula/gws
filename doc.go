@@ -38,7 +38,7 @@ import (
 	"net/http"
 	"time"
 
-	sessionx "github.com/higker/sesssionx"
+	sessionx "github.com/higker/sessionx"
 )
 
 var (

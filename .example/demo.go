@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	sessionx "github.com/higker/sesssionx"
+	sessionx "github.com/higker/sessionx"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 		RedisPassword:  "redis.nosql",
 		RedisKeyPrefix: sessionx.SessionKey,
 		PoolSize:       100,
-		Domain:         "localhost:8080",
+		Domain:         "localhost", // set domain by you
 		Name:           sessionx.SessionKey,
 		Path:           "/",
 		Secure:         true,

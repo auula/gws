@@ -26,7 +26,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/go-redis/redis/v8"
 )
 
@@ -48,13 +47,10 @@ type manager struct {
 
 func New(t storeType, cfg *Configs) {
 
-	// parameter verify
-	validate := validator.New()
-
 	switch t {
 	case M:
-		validate.RegisterValidation("redis", excludeRedisTag)
-		if err := validate.Struct(cfg); err != nil {
+
+		if err := cfg.VerifyMemory(); err != nil {
 			panic(err.Error())
 		}
 
@@ -64,10 +60,11 @@ func New(t storeType, cfg *Configs) {
 		mgr = &manager{cfg: cfg.Parse(), store: m}
 
 	case R:
-		validate.RegisterValidation("redis", includeRedisTag)
-		if err := validate.Struct(cfg); err != nil {
+
+		if err := cfg.VerifyRedis(); err != nil {
 			panic(err.Error())
 		}
+
 		// init redis storage
 		r := new(redisStore)
 		r.sessions = redis.NewClient(&redis.Options{

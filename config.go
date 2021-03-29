@@ -23,8 +23,10 @@
 package sessionx
 
 import (
-	"github.com/go-playground/validator/v10"
+	"errors"
+	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 )
 
@@ -47,17 +49,17 @@ type Configs struct {
 	//EncryptedKey string `json:"encrypted_key" validate:"required,len=16"`
 
 	// redis server ip
-	RedisAddr string `json:"redis_addr" validate:"required,redis"`
+	RedisAddr string `json:"redis_addr" validate:"required"`
 	// redis auth password
-	RedisPassword string `json:"redis_password" validate:"required,redis"`
+	RedisPassword string `json:"redis_password" validate:"required"`
 	// redis key prefix
-	RedisKeyPrefix string `json:"redis_key_prefix" validate:"required,redis"`
+	RedisKeyPrefix string `json:"redis_key_prefix" validate:"required"`
 	// redis db
 	RedisDB int `json:"redis_db" validate:"gte=0,lte=15,redis"`
 	// the life cycle of a session without operations
-	TimeOut time.Duration `json:"time_out" validate:"required,redis"`
+	TimeOut time.Duration `json:"time_out" validate:"required"`
 	// connection pool size
-	PoolSize uint8 `json:"pool_size" validate:"gte=5,lte=100,redis"`
+	PoolSize uint8 `json:"pool_size" validate:"gte=5,lte=100"`
 
 	// cookie domain
 	Domain string `json:"domain" `
@@ -78,12 +80,41 @@ type Configs struct {
 	_cookie *http.Cookie
 }
 
-func excludeRedisTag(fl validator.FieldLevel) bool {
-	return fl.Field().String() == ""
+// VerifyRedis config parameter
+func (c *Configs) VerifyRedis() error {
+	IPAndPortRegex := "^(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5]):([0-9]|[1-9]\\d|[1-9]\\d{2}|[1-9]\\d{3}|[1-5]\\d{4}|6[0-4]\\d{3}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5])$"
+	if err := c.VerifyMemory(); err != nil {
+		return fmt.Errorf("verify config param fail: %s", err.Error())
+	}
+	match, _ := regexp.MatchString(IPAndPortRegex, c.RedisAddr)
+	if !match {
+		return errors.New("redis ip address format error")
+	}
+	if len(c.RedisKeyPrefix) <= 0 {
+		return errors.New("redis key prefix required")
+	}
+	if c.RedisDB < 0 && c.RedisDB > 15 {
+		return errors.New("redis database number index not exist")
+	}
+	if c.PoolSize < 1 && c.PoolSize > 100 {
+		return errors.New("redis pool size range is 1 - 100")
+	}
+	return nil
 }
 
-func includeRedisTag(fl validator.FieldLevel) bool {
-	return fl.Field().String() != ""
+// VerifyMemory config parameter
+func (c *Configs) VerifyMemory() error {
+	if c.TimeOut.Nanoseconds() <= 0 {
+		c.TimeOut = time.Minute * 30
+	}
+	if c.Path == "" {
+		return errors.New("cookie path not exist")
+	}
+	if c.Name == "" {
+		return errors.New("cookie key name not exist")
+	}
+	c.HttpOnly = true
+	return nil
 }
 
 // Parse config parameter
