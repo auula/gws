@@ -6,3 +6,4 @@ Session library for Golang.
 [![DeepSource](https://deepsource.io/gh/higker/sessionx.svg/?label=active+issues&show_trend=true)](https://deepsource.io/gh/higker/sessionx/?ref=repository-badge)
 [![DeepSource](https://deepsource.io/gh/higker/sessionx.svg/?label=resolved+issues&show_trend=true)](https://deepsource.io/gh/higker/sessionx/?ref=repository-badge)
 [![License](https://img.shields.io/badge/license-MIT-db5149.svg)](https://github.com/higker/sessionx/blob/master/LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/higker/sessionx.svg)](https://pkg.go.dev/github.com/higker/sessionx)
