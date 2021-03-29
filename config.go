@@ -93,10 +93,10 @@ func (c *Configs) VerifyRedis() error {
 	if len(c.RedisKeyPrefix) <= 0 {
 		return errors.New("redis key prefix required")
 	}
-	if c.RedisDB < 0 && c.RedisDB > 15 {
+	if c.RedisDB < 0 || c.RedisDB > 15 {
 		return errors.New("redis database number index not exist")
 	}
-	if c.PoolSize < 1 && c.PoolSize > 100 {
+	if c.PoolSize < 1 || c.PoolSize > 100 {
 		return errors.New("redis pool size range is 1 - 100")
 	}
 	return nil
