@@ -31,10 +31,6 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-var (
-	ctx = context.Background()
-)
-
 // redisStore redis storage implement
 type redisStore struct {
 	sync.Mutex
@@ -53,7 +49,11 @@ func (rs *redisStore) Read(s *Session) error {
 	if err != nil {
 		return err
 	}
-	if err := rs.sessions.Expire(ctx, sid, mgr.cfg.TimeOut).Err(); err != nil {
+
+	timeout, cancelFunc = context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancelFunc()
+
+	if err := rs.sessions.Expire(timeout, sid, mgr.cfg.TimeOut).Err(); err != nil {
 		return err
 	}
 	if err := decoder(bytes, s); err != nil {
