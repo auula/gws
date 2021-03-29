@@ -49,7 +49,7 @@ func (rs *redisStore) Read(s *Session) error {
 	if err != nil {
 		return err
 	}
-
+	// Expire timeout context
 	timeout, cancelFunc = context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancelFunc()
 
