@@ -43,7 +43,6 @@ func TestCoroutine(t *testing.T) {
 					num = num + 1
 					rdb.Set(ctx, "i", num, 10*time.Minute)
 					releaseLock()
-					break
 				default:
 					if upLock() {
 						tx <- struct{}{}
@@ -72,12 +71,4 @@ func upLock() bool {
 // 重新填充lockChan
 func releaseLock() {
 	rdb.Del(ctx, "lock")
-}
-
-func Affairs(fn func()) {
-	if upLock() {
-		defer releaseLock()
-		fn()
-	}
-	Affairs(fn)
 }
