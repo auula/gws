@@ -9,20 +9,20 @@ Session library for Golang.
 [![Go Reference](https://pkg.go.dev/badge/github.com/higker/sessionx.svg)](https://pkg.go.dev/github.com/higker/sessionx)
 
 
-## 介 绍
+# 介 绍
 `sessionx`是适用于`go`的`web`编程的`session`中间件的库，你可以轻松得使用这个包来管你的session。
 
 
 1. 支持内存存储
 2. 支持`redis`存储
 
-**获取安装库**
+## 获取安装库
 
 ```go
 go get -u github.com/higker/sessionx
 ```
 
-**使用例子**
+## 使用例子
 
 ```go
 package main
@@ -82,7 +82,6 @@ func main() {
 }
 
 ```
-
-**其他帮助**
+## 其他帮助
 
 [点击查看: 本库设计和实现文章！](https://mp.weixin.qq.com/s/z_mLGZKXt0hO1l8UWjukUg)
