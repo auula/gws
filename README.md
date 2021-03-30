@@ -10,7 +10,7 @@ Session library for Golang.
 
 
 # 介 绍
-`sessionx`是适用于`go`的`web`编程的`session`中间件的库，你可以轻松得使用这个包来管你的`session`。
+`sessionx`是适用于`go`的`web`编程的`session`中间件的库，你可以轻松得使用这个包来管理你的`session`。
 
 
 1. 支持内存存储
@@ -37,13 +37,15 @@ import (
 )
 
 var (
+	// 如果是使用内存存储就不需要配置redis相关信息
 	cfg = &sessionx.Configs{
-		TimeOut:        time.Minute * 30,
 		RedisAddr:      "127.0.0.1:6379",
 		RedisDB:        0,
 		RedisPassword:  "redis.nosql",
 		RedisKeyPrefix: sessionx.SessionKey,
 		PoolSize:       100,
+		// 以下是必要配置信息
+		TimeOut:        time.Minute * 30,
 		Domain:         "localhost", // set domain by you
 		Name:           sessionx.SessionKey,
 		Path:           "/",
@@ -53,7 +55,10 @@ var (
 )
 
 func main() {
+
+	// 实例化一个redis存储，R = redis M = memory
 	sessionx.New(sessionx.R, cfg)
+	
 	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
 		session.Set("K", time.Now().Format("2006 01-02 15:04:05"))
