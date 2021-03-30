@@ -39,12 +39,13 @@ import (
 var (
 	// 如果是使用内存存储就不需要配置redis相关信息
 	cfg = &sessionx.Configs{
-		TimeOut:        time.Minute * 30,
 		RedisAddr:      "127.0.0.1:6379",
 		RedisDB:        0,
 		RedisPassword:  "redis.nosql",
 		RedisKeyPrefix: sessionx.SessionKey,
 		PoolSize:       100,
+		// 以下是必要配置信息
+		TimeOut:        time.Minute * 30,
 		Domain:         "localhost", // set domain by you
 		Name:           sessionx.SessionKey,
 		Path:           "/",
