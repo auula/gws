@@ -26,7 +26,7 @@ var (
 )
 
 func main() {
-	sessionx.New(sessionx.R, cfg)
+	sessionx.New(sessionx.M, cfg)
 	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
 		session.Set("K", time.Now().Format("2006 01-02 15:04:05"))
@@ -49,6 +49,7 @@ func main() {
 		if err != nil {
 			log.Println(err)
 		}
+		session.Set("person", "Jarvib Ding")
 		fmt.Fprintln(writer, session)
 	})
 	_ = http.ListenAndServe(":8080", nil)

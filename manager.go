@@ -32,10 +32,11 @@ import (
 type storeType uint8
 
 const (
-	// memoryStore store type
+	// M: memoryStore store type
 	M storeType = iota
-	// redis store type
+	// R: redis store type
 	R
+	// SessionKey: session id str
 	SessionKey = "session-id"
 )
 
@@ -45,6 +46,7 @@ type manager struct {
 	store storage
 }
 
+// New is build session data storage
 func New(t storeType, cfg *Configs) {
 
 	switch t {

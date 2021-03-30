@@ -164,6 +164,7 @@ func (s *Session) refreshCookie() {
 	http.SetCookie(s._w, s.Cookie)
 }
 
+// generateUUID: generate session id
 func generateUUID() string {
 	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
 }
@@ -178,6 +179,7 @@ func (s *Session) copy(cookie *http.Cookie) error {
 	return nil
 }
 
+// MigrateSession: migrate old session data to new session
 func (s *Session) MigrateSession() error {
 
 	mgr.store.Remove(s)
