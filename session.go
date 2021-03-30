@@ -187,12 +187,14 @@ func (s *Session) MigrateSession() error {
 	if err != nil {
 		return errors.New("migrate session make a deep copy from src into dst failed")
 	}
-	mgr.store.Remove(s)
+
 	newSession.(*Session).ID = s.ID
 	newSession.(*Session).Cookie.Value = s.ID
 	newSession.(*Session).Expires = time.Now().Add(mgr.cfg.TimeOut)
 	newSession.(*Session)._w = s._w
 	newSession.(*Session).refreshCookie()
+
+	mgr.store.Remove(s)
 
 	return mgr.store.Create(newSession.(*Session))
 }
