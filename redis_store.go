@@ -25,15 +25,16 @@ package sessionx
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 )
 
+// type task func() error
+
 // redisStore redis storage implement
 type redisStore struct {
-	sync.Mutex
+	// channel  chan task
 	sessions *redis.Client
 }
 
@@ -93,3 +94,7 @@ func (rs *redisStore) setValue(s *Session) error {
 
 	return rs.sessions.Set(timeout, fmt.Sprintf("%s:%s", mgr.cfg.RedisKeyPrefix, s.ID), bytes, mgr.cfg.TimeOut).Err()
 }
+
+//func (rs *redisStore) Do()  {
+//
+//}

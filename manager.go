@@ -76,6 +76,9 @@ func New(t storeType, cfg *Configs) {
 			PoolSize: int(cfg.PoolSize), // connection pool size
 		})
 
+		// 解决并发数据一致问题
+		// r.channel = make(chan task, 1024)
+
 		// test connection
 		timeout, cancelFunc := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancelFunc()

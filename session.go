@@ -182,14 +182,12 @@ func (s *Session) copy(cookie *http.Cookie) error {
 // MigrateSession: migrate old session data to new session
 func (s *Session) MigrateSession() error {
 
-	mgr.store.Remove(s)
-
 	s.ID = generateUUID()
 	newSession, err := deepcopy.Anything(s)
 	if err != nil {
 		return errors.New("migrate session make a deep copy from src into dst failed")
 	}
-
+	mgr.store.Remove(s)
 	newSession.(*Session).ID = s.ID
 	newSession.(*Session).Cookie.Value = s.ID
 	newSession.(*Session).Expires = time.Now().Add(mgr.cfg.TimeOut)
