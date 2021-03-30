@@ -10,7 +10,7 @@ Session library for Golang.
 
 
 # 介 绍
-`sessionx`是适用于`go`的`web`编程的`session`中间件的库，你可以轻松得使用这个包来管你的`session`。
+`sessionx`是适用于`go`的`web`编程的`session`中间件的库，你可以轻松得使用这个包来管理你的`session`。
 
 
 1. 支持内存存储
