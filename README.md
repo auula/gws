@@ -37,6 +37,7 @@ import (
 )
 
 var (
+	// 如果是使用内存存储就不需要配置redis相关信息
 	cfg = &sessionx.Configs{
 		TimeOut:        time.Minute * 30,
 		RedisAddr:      "127.0.0.1:6379",
@@ -53,7 +54,10 @@ var (
 )
 
 func main() {
+
+	// 实例化一个redis存储，R = redis M = memory
 	sessionx.New(sessionx.R, cfg)
+	
 	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
 		session.Set("K", time.Now().Format("2006 01-02 15:04:05"))
