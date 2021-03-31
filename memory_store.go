@@ -74,7 +74,7 @@ func (m *memoryStore) gc() {
 			}
 			return true
 		})
-		// runtime.GC()
+		runtime.GC()
 		// log.Println("gc running...")
 	}
 
