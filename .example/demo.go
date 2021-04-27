@@ -28,7 +28,7 @@ var (
 )
 
 func main() {
-	sessionx.New(sessionx.M, cfg)
+	sessionx.New(sessionx.M, sessionx.DefaultCfg)
 	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
 		// 存储K的值

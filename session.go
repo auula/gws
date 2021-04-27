@@ -196,7 +196,7 @@ func (s *Session) MigrateSession() (*Session, error) {
 	newSession.(*Session).refreshCookie()
 
 	// Remove cache
-	mgr.store.Remove(&Session{ID: newID})
+	mgr.store.Remove(s)
 	mgr.store.Create(newSession.(*Session))
 	return newSession.(*Session), nil
 }
