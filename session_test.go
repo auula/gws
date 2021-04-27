@@ -18,12 +18,12 @@ func TestSessionLock(t *testing.T) {
 		count = count + 1
 		wait.Done()
 	})
+	go lock["R"](func() {
+		t.Log(count)
+	})
 	go lock["W"](func() {
 		count = count + 1
 		wait.Done()
-	})
-	go lock["R"](func() {
-		t.Log(count)
 	})
 	go lock["W"](func() {
 		count = count + 1
