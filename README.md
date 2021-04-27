@@ -37,36 +37,35 @@ import (
 )
 
 var (
-	// 如果是使用内存存储就不需要配置redis相关信息
 	cfg = &sessionx.Configs{
+		TimeOut:        time.Minute * 30,
 		RedisAddr:      "127.0.0.1:6379",
 		RedisDB:        0,
 		RedisPassword:  "redis.nosql",
 		RedisKeyPrefix: sessionx.SessionKey,
 		PoolSize:       100,
-		// 以下是必要配置信息
-		TimeOut:        time.Minute * 30,
 		Domain:         "localhost", // set domain by you
 		Name:           sessionx.SessionKey,
 		Path:           "/",
 		Secure:         true,
 		HttpOnly:       true,
 	}
+	// 如果使用内存存储就直接使用 sessionx.DefaultCfg
+	// sessionx.New(sessionx.M, sessionx.DefaultCfg)
 )
 
 func main() {
-
-	// 实例化一个redis存储，R = redis M = memory
-	sessionx.New(sessionx.R, cfg)
-	
+	sessionx.New(sessionx.M, cfg)
 	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
+		// 存储K的值
 		session.Set("K", time.Now().Format("2006 01-02 15:04:05"))
 		fmt.Fprintln(writer, "set time value succeed.")
 	})
 
 	http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
+		// 获取存储K的值
 		v, err := session.Get("K")
 		if err != nil {
 			fmt.Fprintln(writer, err.Error())
@@ -77,10 +76,14 @@ func main() {
 
 	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
 		session := sessionx.Handler(writer, request)
-		err := session.MigrateSession()
+
+		// MigrateSession 函数会迁移session会话数据，返回新的session
+		session, err := session.MigrateSession()
 		if err != nil {
 			log.Println(err)
 		}
+
+		session.Set("person", "Jarvib Ding")
 		fmt.Fprintln(writer, session)
 	})
 	_ = http.ListenAndServe(":8080", nil)

@@ -58,6 +58,7 @@ var (
 	}
 )
 
+// See doc.go file.
 type Session struct {
 	// sessionId
 	ID string
@@ -180,24 +181,24 @@ func (s *Session) copy(cookie *http.Cookie) error {
 }
 
 // MigrateSession: migrate old session data to new session
-func (s *Session) MigrateSession() error {
+func (s *Session) MigrateSession() (*Session, error) {
 
-	s.ID = generateUUID()
+	newID := generateUUID()
 	newSession, err := deepcopy.Anything(s)
 	if err != nil {
-		return errors.New("migrate session make a deep copy from src into dst failed")
+		return nil, errors.New("migrate session make a deep copy from src into dst failed")
 	}
 
-	newSession.(*Session).ID = s.ID
-	newSession.(*Session).Cookie.Value = s.ID
+	newSession.(*Session).ID = newID
+	newSession.(*Session).Cookie.Value = newID
 	newSession.(*Session).Expires = time.Now().Add(mgr.cfg.TimeOut)
 	newSession.(*Session)._w = s._w
 	newSession.(*Session).refreshCookie()
 
 	// Remove cache
-	mgr.store.Remove(s)
-
-	return mgr.store.Create(newSession.(*Session))
+	mgr.store.Remove(&Session{ID: newID})
+	mgr.store.Create(newSession.(*Session))
+	return newSession.(*Session), nil
 }
 
 // It makes a deep copy by using json.Marshal and json.Unmarshal, so it's not very
