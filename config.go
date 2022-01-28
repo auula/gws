@@ -24,11 +24,16 @@ package gws
 
 import "time"
 
-type StoreType uint8
+type store uint8
 
 const (
-	RAM StoreType = iota
-	RDS
+	ram store = iota // session storage ram type
+	rds              // session storage rds type
+)
+
+var (
+	DefaultRAMOption = &RAMOption{} // default RAM config parameter option.
+	DefaultRDSOption = &RDSOption{} // default RDS config parameter option.
 )
 
 // option type is default config parameter option.
@@ -49,19 +54,19 @@ func (ram RAMOption) Parse() *config {
 	return nil
 }
 
-// RedisOption is Redis storage config parameter option.
-type RedisOption struct {
+// RDSOption is Redis storage config parameter option.
+type RDSOption struct {
 	option
 }
 
-func (rds RedisOption) Parse() *config {
+func (rds RDSOption) Parse() *config {
 	return nil
 }
 
 // config is session storage config parameter.
 type config struct {
+	store
 	option
-	StoreType
 }
 
 // Parser is session storage config parameter parser.
