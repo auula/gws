@@ -9,7 +9,7 @@ name = "go"
 enabled = true
 
   [analyzers.meta]
-  import_paths = ["github.com/higker/sessionx"]
+  import_paths = ["github.com/auula/gws"]
 
 [[transformers]]
 name = "gofmt"
