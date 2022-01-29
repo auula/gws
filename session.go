@@ -142,11 +142,12 @@ type Session struct {
 	UUID string
 	Data Values
 	http.Cookie
+	mux        sync.Mutex
 	CreateTime time.Duration
 	ExpireTime time.Duration
 }
 
-func (s Session) Save(key string, obj interface{}) (err error) {
+func (s *Session) Save(key string, obj interface{}) (err error) {
 	if s.Expired() {
 		return errors.New("session already expired")
 	}
@@ -158,7 +159,7 @@ func (s Session) Save(key string, obj interface{}) (err error) {
 	return
 }
 
-func (s Session) Get(key string, obj interface{}) (err error) {
+func (s *Session) Get(key string, obj interface{}) (err error) {
 	if s.Expired() {
 		return errors.New("session already expired")
 	}
@@ -170,7 +171,7 @@ func (s Session) Get(key string, obj interface{}) (err error) {
 	return
 }
 
-func (s Session) Remove(key string) error {
+func (s *Session) Remove(key string) error {
 	if s.Expired() {
 		return errors.New("session already expired")
 	}
@@ -182,15 +183,15 @@ func (s Session) Remove(key string) error {
 	return nil
 }
 
-func (s Session) Clean() {
+func (s *Session) Clean() {
 	globalStore.Clean(s.UUID)
 }
 
-func (s Session) refresh() {
+func (s *Session) refresh() {
 
 }
 
-func (s Session) Migrate() (*Session, error) {
+func (s *Session) Migrate() (*Session, error) {
 	return nil, nil
 }
 
@@ -199,10 +200,13 @@ func (s *Session) Expired() bool {
 }
 
 func (s *Session) renew() {
+	s.mux.Lock()
+	defer s.mux.Unlock()
 	nowTime := time.Duration(time.Now().UnixNano())
 	s.ExpireTime = nowTime + lifeTime
 	s.CreateTime = nowTime
 }
+并发
 
 func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	return nil
