@@ -53,12 +53,8 @@ type Storage interface {
 type Values map[string][]byte
 
 type RamStore struct {
-	mux  sync.Mutex
-	data map[string]Values
-}
-
-func (ram *RamStore) GetValues(sid string) Values {
-	return ram.data[sid]
+	mux   sync.Mutex
+	store map[string]*Session
 }
 
 func (ram *RamStore) Save(sid string, key string, obj interface{}) (err error) {
@@ -74,7 +70,7 @@ func (ram *RamStore) Save(sid string, key string, obj interface{}) (err error) {
 	}
 
 	ram.mux.Lock()
-	ram.data[sid][key] = bytes
+	ram.store[sid].Data[key] = bytes
 	ram.mux.Unlock()
 
 	return nil
@@ -88,13 +84,11 @@ func (ram *RamStore) Get(sid string, key string, obj interface{}) (err error) {
 
 	var bytes []byte
 
-	ram.mux.Lock()
-	if bs, ok := ram.data[sid][key]; !ok {
+	if bs, ok := ram.store[sid].Data[key]; !ok {
 		// 如果是空这个bs 也是空并且返回了
 		bytes = bs
 		return errors.New("key no data")
 	}
-	ram.mux.Unlock()
 
 	return json.Unmarshal(bytes, obj)
 }
@@ -105,7 +99,7 @@ func (ram *RamStore) Remove(sid string, key string) error {
 		return err
 	}
 	ram.mux.Lock()
-	delete(ram.data[sid], key)
+	delete(ram.store[sid].Data, key)
 	ram.mux.Unlock()
 	return nil
 }
@@ -117,8 +111,23 @@ func (ram *RamStore) Clean(sid string) {
 	}
 
 	ram.mux.Lock()
-	delete(ram.data, sid)
+	delete(ram.store, sid)
 	ram.mux.Unlock()
+}
+
+// gc is ram garbage collection.
+func (ram *RamStore) gc() {
+	for {
+		// 30 minute garbage collection.
+		time.Sleep(lifeTime)
+		for _, session := range ram.store {
+			if session.Expired() {
+				ram.mux.Lock()
+				delete(ram.store, session.UUID)
+				ram.mux.Unlock()
+			}
+		}
+	}
 }
 
 func isEmpty(sid string, key string) error {
@@ -130,7 +139,7 @@ func isEmpty(sid string, key string) error {
 
 type Session struct {
 	UUID string
-	// Data Values
+	Data Values
 	http.Cookie
 	CreateTime time.Duration
 	ExpireTime time.Duration
