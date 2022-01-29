@@ -22,7 +22,10 @@
 
 package gws
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type store uint8
 
@@ -32,17 +35,56 @@ const (
 )
 
 var (
-	DefaultRAMOption = &RAMOption{} // default RAM config parameter option.
-	DefaultRDSOption = &RDSOption{} // default RDS config parameter option.
+	// default option
+	defaultOption = option{
+		LifeTime:   time.Duration(1800) * time.Second,
+		CookieName: "gws_id",
+		DomainPath: "/",
+		HttpOnly:   true,
+		Secure:     true,
+	}
+
+	// default RAM config parameter option.
+	DefaultRAMOption = &RAMOption{
+		option: defaultOption,
+	}
+
+	// default RDS config parameter option.
+	DefaultRDSOption = func(ip string, port uint16, passwd string) *RDSOption {
+		var rdsopt RDSOption
+		rdsopt.option = defaultOption
+
+		rdsopt.Prefix = "gws_id"
+		rdsopt.PoolSize = 10
+		rdsopt.Password = passwd
+		rdsopt.Address = fmt.Sprintf("%s:%v", ip, port)
+
+		return &rdsopt
+	}
 )
+
+// config is session storage config parameter.
+type config struct {
+	store `json:"store,omitempty"`
+	RDSOption
+}
+
+// Parser is session storage config parameter parser.
+type Parser interface {
+	Parse() *config
+}
+
+func verifyCfg(cfg *config) *config {
+	return cfg
+}
 
 // option type is default config parameter option.
 type option struct {
-	LifeTime   time.Duration
-	CookieName string
-	DomainPath string
-	HttpOnly   bool
-	Secure     bool
+	LifeTime   time.Duration `json:"life_time,omitempty"`
+	CookieName string        `json:"cookie_name,omitempty"`
+	DomainPath string        `json:"domain_path,omitempty"`
+	HttpOnly   bool          `json:"http_only,omitempty"`
+	Secure     bool          `json:"secure,omitempty"`
 }
 
 // RAMOption is RAM storage config parameter option.
@@ -50,26 +92,30 @@ type RAMOption struct {
 	option
 }
 
-func (ram RAMOption) Parse() *config {
-	return nil
+func (opt RAMOption) Parse() *config {
+	var cfg config
+
+	cfg.store = ram
+	// 默认本机内存存储，只需要设置基本设置即可
+	cfg.RDSOption.option = opt.option
+
+	return verifyCfg(&cfg)
 }
 
 // RDSOption is Redis storage config parameter option.
 type RDSOption struct {
 	option
+	Prefix   string `json:"prefix,omitempty"`
+	Address  string `json:"address,omitempty"`
+	Password string `json:"password,omitempty"`
+	PoolSize uint8  `json:"pool_size,omitempty"`
 }
 
-func (rds RDSOption) Parse() *config {
-	return nil
-}
+func (opt RDSOption) Parse() *config {
+	var cfg config
 
-// config is session storage config parameter.
-type config struct {
-	store
-	option
-}
-
-// Parser is session storage config parameter parser.
-type Parser interface {
-	Parse() *config
+	cfg.store = rds
+	// redis存储相应的设置就会多一点，校验策略根据redis策略
+	cfg.RDSOption = opt
+	return verifyCfg(&cfg)
 }
