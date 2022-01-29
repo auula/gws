@@ -206,7 +206,6 @@ func (s *Session) renew() {
 	s.ExpireTime = nowTime + lifeTime
 	s.CreateTime = nowTime
 }
-并发
 
 func Handler(w http.ResponseWriter, req *http.Request) *Session {
 	return nil
