@@ -119,6 +119,7 @@ func (ram *RamStore) Clean(sid string) {
 func (ram *RamStore) gc() {
 	for {
 		// 30 minute garbage collection.
+		// 这里可以并发优化 向消费通道里面发送
 		time.Sleep(lifeTime)
 		for _, session := range ram.store {
 			if session.Expired() {
