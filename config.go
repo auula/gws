@@ -33,8 +33,8 @@ import (
 type store uint8
 
 const (
-	ram       store = iota // session storage ram type
-	rds                    // session storage rds type
+	ram      store = iota // session storage ram type
+	rds                   // session storage rds type
 	prefix   = "gws_id"
 	lifeTime = time.Duration(1800) * time.Second
 )
@@ -74,8 +74,8 @@ type config struct {
 	RDSOption
 }
 
-// Parser is session storage config parameter parser.
-type Parser interface {
+// Configer is session storage config parameter parser.
+type Configer interface {
 	Parse() (cfg *config)
 }
 
