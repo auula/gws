@@ -35,26 +35,26 @@ type store uint8
 const (
 	ram       store = iota // session storage ram type
 	rds                    // session storage rds type
-	prefix    = "gws_id"
-	life_time = time.Duration(1800) * time.Second
+	prefix   = "gws_id"
+	lifeTime = time.Duration(1800) * time.Second
 )
 
 var (
 	// default option
 	defaultOption = option{
-		LifeTime:   life_time,
+		LifeTime:   lifeTime,
 		CookieName: prefix,
 		DomainPath: "/",
 		HttpOnly:   true,
 		Secure:     true,
 	}
 
-	// default RAM config parameter option.
+	// DefaultRAMOption default RAM config parameter option.
 	DefaultRAMOption = &RAMOption{
 		option: defaultOption,
 	}
 
-	// default RDS config parameter option.
+	// DefaultRDSOption default RDS config parameter option.
 	DefaultRDSOption = func(ip string, port uint16, passwd string) *RDSOption {
 		var rdsopt RDSOption
 		rdsopt.option = defaultOption
@@ -130,7 +130,7 @@ func verifyCfg(cfg *config) *config {
 		panic("domain path is empty.")
 	}
 	if cfg.LifeTime <= 0 {
-		cfg.LifeTime = life_time
+		cfg.LifeTime = lifeTime
 	}
 
 	// ram校验通过直接返回

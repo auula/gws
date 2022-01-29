@@ -25,26 +25,31 @@ package gws
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"sync"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
-	// Global session storager controller
-	globalStore Storager
+	// Global session storage controller
+	globalStore Storage
 )
 
 func init() {
 	globalStore = nil
 }
 
-type Storager interface {
+type Storage interface {
 	Clean(sid string)
 	Remove(sid string, key string) error
 	Get(sid string, key string, obj interface{}) (err error)
 	Save(sid string, key string, obj interface{}) (err error)
 }
 
-// Values is session item vlaue
+// Values is session item value
 type Values map[string][]byte
 
 type RamStore struct {
@@ -62,7 +67,7 @@ func (ram *RamStore) Save(sid string, key string, obj interface{}) (err error) {
 		return err
 	}
 
-	var bytes = []byte{}
+	var bytes []byte
 
 	if bytes, err = json.Marshal(obj); err != nil {
 		return err
@@ -87,7 +92,7 @@ func (ram *RamStore) Get(sid string, key string, obj interface{}) (err error) {
 	if bs, ok := ram.data[sid][key]; !ok {
 		// 如果是空这个bs 也是空并且返回了
 		bytes = bs
-		return errors.New("key no data.")
+		return errors.New("key no data")
 	}
 	ram.mux.Unlock()
 
@@ -118,7 +123,47 @@ func (ram *RamStore) Clean(sid string) {
 
 func isEmpty(sid string, key string) error {
 	if key == "" || sid == "" {
-		return errors.New("key OR session id is empty.")
+		return errors.New("key OR session id is empty")
 	}
 	return nil
+}
+
+type Session struct {
+	UUID string
+	// Data Values
+	http.Cookie
+	CreateTime time.Duration
+	ExpireTime time.Duration
+}
+
+func (s Session) Save(key string, obj interface{}) (err error) {
+	return globalStore.Save(s.UUID, key, obj)
+}
+
+func (s Session) Get(key string, obj interface{}) (err error) {
+	return globalStore.Get(s.UUID, key, obj)
+}
+
+func (s Session) Remove(key string) error {
+	return globalStore.Remove(s.UUID, key)
+}
+
+func (s Session) Clean() {
+	globalStore.Clean(s.UUID)
+}
+
+func (s Session) refresh() {
+
+}
+
+func (s Session) Migrate() (*Session, error) {
+	return nil, nil
+}
+
+func Handler(w http.ResponseWriter, req *http.Request) *Session {
+	return nil
+}
+
+func UUID73() string {
+	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
 }
