@@ -71,7 +71,7 @@ type config struct {
 
 // Parser is session storage config parameter parser.
 type Parser interface {
-	Parse() *config
+	Parse() (cfg *config)
 }
 
 func verifyCfg(cfg *config) *config {
@@ -92,14 +92,13 @@ type RAMOption struct {
 	option
 }
 
-func (opt RAMOption) Parse() *config {
-	var cfg config
+func (opt RAMOption) Parse() (cfg *config) {
 
 	cfg.store = ram
 	// 默认本机内存存储，只需要设置基本设置即可
 	cfg.RDSOption.option = opt.option
 
-	return verifyCfg(&cfg)
+	return verifyCfg(cfg)
 }
 
 // RDSOption is Redis storage config parameter option.
@@ -111,11 +110,11 @@ type RDSOption struct {
 	PoolSize uint8  `json:"pool_size,omitempty"`
 }
 
-func (opt RDSOption) Parse() *config {
-	var cfg config
+func (opt RDSOption) Parse() (cfg *config) {
 
 	cfg.store = rds
 	// redis存储相应的设置就会多一点，校验策略根据redis策略
 	cfg.RDSOption = opt
-	return verifyCfg(&cfg)
+
+	return verifyCfg(cfg)
 }
