@@ -146,6 +146,10 @@ func verifyCfg(cfg *config) *config {
 		cfg.Prefix = perfix
 	}
 
+	if cfg.Password == "" {
+		panic("remote server login passwd is empty.")
+	}
+
 	// 针对特定存储校验
 	if net.ParseIP(strings.Split(cfg.Address, ":")[0]) == nil {
 		panic("remote ip address illegal.")
