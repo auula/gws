@@ -36,6 +36,11 @@ import (
 var (
 	// Global session storage controller
 	globalStore Storage
+
+	// Universal error message
+	ErrKeyNoData      = errors.New("key no data")
+	ErrIsEmpty        = errors.New("key OR session id is empty")
+	ErrAlreadyExpired = errors.New("session already expired")
 )
 
 func init() {
@@ -87,7 +92,7 @@ func (ram *RamStore) Get(sid string, key string, obj interface{}) (err error) {
 	if bs, ok := ram.store[sid].Data[key]; !ok {
 		// 如果是空这个bs 也是空并且返回了
 		bytes = bs
-		return errors.New("key no data")
+		return ErrKeyNoData
 	}
 
 	return json.Unmarshal(bytes, obj)
@@ -133,7 +138,7 @@ func (ram *RamStore) gc() {
 
 func isEmpty(sid string, key string) error {
 	if key == "" || sid == "" {
-		return errors.New("key OR session id is empty")
+		return ErrIsEmpty
 	}
 	return nil
 }
@@ -149,7 +154,7 @@ type Session struct {
 
 func (s *Session) Save(key string, obj interface{}) (err error) {
 	if s.Expired() {
-		return errors.New("session already expired")
+		return ErrAlreadyExpired
 	}
 	if err = globalStore.Save(s.UUID, key, obj); err != nil {
 		return
@@ -161,7 +166,7 @@ func (s *Session) Save(key string, obj interface{}) (err error) {
 
 func (s *Session) Get(key string, obj interface{}) (err error) {
 	if s.Expired() {
-		return errors.New("session already expired")
+		return ErrAlreadyExpired
 	}
 	if err = globalStore.Get(s.UUID, key, obj); err != nil {
 		return
@@ -173,7 +178,7 @@ func (s *Session) Get(key string, obj interface{}) (err error) {
 
 func (s *Session) Remove(key string) error {
 	if s.Expired() {
-		return errors.New("session already expired")
+		return ErrAlreadyExpired
 	}
 	if err := globalStore.Remove(s.UUID, key); err != nil {
 		return err
