@@ -137,15 +137,39 @@ type Session struct {
 }
 
 func (s Session) Save(key string, obj interface{}) (err error) {
-	return globalStore.Save(s.UUID, key, obj)
+	if s.Expired() {
+		return errors.New("session already expired")
+	}
+	if err = globalStore.Save(s.UUID, key, obj); err != nil {
+		return
+	}
+	// 重置会话生命周期
+	s.renew()
+	return
 }
 
 func (s Session) Get(key string, obj interface{}) (err error) {
-	return globalStore.Get(s.UUID, key, obj)
+	if s.Expired() {
+		return errors.New("session already expired")
+	}
+	if err = globalStore.Get(s.UUID, key, obj); err != nil {
+		return
+	}
+	// 重置会话生命周期
+	s.renew()
+	return
 }
 
 func (s Session) Remove(key string) error {
-	return globalStore.Remove(s.UUID, key)
+	if s.Expired() {
+		return errors.New("session already expired")
+	}
+	if err := globalStore.Remove(s.UUID, key); err != nil {
+		return err
+	}
+	// 重置会话生命周期
+	s.renew()
+	return nil
 }
 
 func (s Session) Clean() {
@@ -158,6 +182,16 @@ func (s Session) refresh() {
 
 func (s Session) Migrate() (*Session, error) {
 	return nil, nil
+}
+
+func (s *Session) Expired() bool {
+	return s.ExpireTime <= time.Duration(time.Now().UnixNano())
+}
+
+func (s *Session) renew() {
+	nowTime := time.Duration(time.Now().UnixNano())
+	s.ExpireTime = nowTime + lifeTime
+	s.CreateTime = nowTime
 }
 
 func Handler(w http.ResponseWriter, req *http.Request) *Session {
