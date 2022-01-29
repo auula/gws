@@ -24,20 +24,24 @@ package gws
 
 import (
 	"fmt"
+	"net"
+	"regexp"
+	"strings"
 	"time"
 )
 
 type store uint8
 
 const (
-	ram store = iota // session storage ram type
-	rds              // session storage rds type
+	ram       store = iota // session storage ram type
+	rds                    // session storage rds type
+	life_time = time.Duration(1800) * time.Second
 )
 
 var (
 	// default option
 	defaultOption = option{
-		LifeTime:   time.Duration(1800) * time.Second,
+		LifeTime:   life_time,
 		CookieName: "gws_id",
 		DomainPath: "/",
 		HttpOnly:   true,
@@ -72,10 +76,6 @@ type config struct {
 // Parser is session storage config parameter parser.
 type Parser interface {
 	Parse() (cfg *config)
-}
-
-func verifyCfg(cfg *config) *config {
-	return cfg
 }
 
 // option type is default config parameter option.
@@ -117,4 +117,34 @@ func (opt RDSOption) Parse() (cfg *config) {
 	cfg.RDSOption = opt
 
 	return verifyCfg(cfg)
+}
+
+func verifyCfg(cfg *config) *config {
+
+	// 通用校验
+	if cfg.CookieName == "" {
+		panic("cookie name is empty.")
+	}
+	if cfg.DomainPath == "" {
+		panic("domain path is empty.")
+	}
+	if cfg.LifeTime <= 0 {
+		cfg.LifeTime = life_time
+	}
+
+	// ram校验通过直接返回
+	if cfg.store == ram {
+		return cfg
+	}
+
+	// 针对特定存储校验
+	if net.ParseIP(strings.Split(cfg.Address, ":")[0]) == nil {
+		panic("remote ip address illegal.")
+	}
+	if matched, err := regexp.MatchString("^[0-9]*$", strings.Split(cfg.Address, ":")[1]); err == nil {
+		if !matched {
+			panic("remote ip address port illegal.")
+		}
+	}
+	return cfg
 }
