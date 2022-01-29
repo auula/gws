@@ -35,6 +35,7 @@ type store uint8
 const (
 	ram       store = iota // session storage ram type
 	rds                    // session storage rds type
+	perfix    = "gws_id"
 	life_time = time.Duration(1800) * time.Second
 )
 
@@ -42,7 +43,7 @@ var (
 	// default option
 	defaultOption = option{
 		LifeTime:   life_time,
-		CookieName: "gws_id",
+		CookieName: perfix,
 		DomainPath: "/",
 		HttpOnly:   true,
 		Secure:     true,
@@ -58,7 +59,7 @@ var (
 		var rdsopt RDSOption
 		rdsopt.option = defaultOption
 
-		rdsopt.Prefix = "gws_id"
+		rdsopt.Prefix = perfix
 		rdsopt.PoolSize = 10
 		rdsopt.Password = passwd
 		rdsopt.Address = fmt.Sprintf("%s:%v", ip, port)
@@ -135,6 +136,14 @@ func verifyCfg(cfg *config) *config {
 	// ram校验通过直接返回
 	if cfg.store == ram {
 		return cfg
+	}
+
+	if cfg.PoolSize <= 0 {
+		cfg.PoolSize = 10
+	}
+
+	if cfg.Prefix == "" {
+		cfg.Prefix = perfix
 	}
 
 	// 针对特定存储校验
