@@ -44,6 +44,7 @@ var (
 	defaultOption = option{
 		LifeTime:   lifeTime,
 		CookieName: prefix,
+		Domain:     "",
 		DomainPath: "/",
 		HttpOnly:   true,
 		Secure:     true,
@@ -86,6 +87,7 @@ type option struct {
 	DomainPath string        `json:"domain_path,omitempty"`
 	HttpOnly   bool          `json:"http_only,omitempty"`
 	Secure     bool          `json:"secure,omitempty"`
+	Domain     string        `json:"domain,omitempty"`
 }
 
 // RAMOption is RAM storage config parameter option.

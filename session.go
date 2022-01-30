@@ -37,6 +37,10 @@ var (
 	// Global session storage controller
 	globalStore Storage
 
+	globalConfig *config
+
+	defaultCookie *http.Cookie
+
 	// Universal error message
 	ErrKeyNoData      = errors.New("key no data")
 	ErrIsEmpty        = errors.New("key OR session id is empty")
@@ -44,15 +48,26 @@ var (
 	ErrSessionNoData  = errors.New("session no data")
 )
 
-func init() {
-	globalStore = nil
+type Storage interface {
+	Read(s *Session) (err error)
+	Write(s *Session) (err error)
+	Create(s *Session) (err error)
+	Remove(s *Session) (err error)
 }
 
-type Storage interface {
-	Clean(sid string)
-	Remove(sid string, key string) error
-	Get(sid string, key string, obj interface{}) (err error)
-	Save(sid string, key string, obj interface{}) (err error)
+func Open(opt Configer) {
+	globalConfig = opt.Parse()
+	defaultCookie = factory()
+
+	switch globalConfig.store {
+	case ram:
+		globalStore = &RamStore{
+			mux:   sync.Mutex{},
+			store: make(map[string]*Session),
+		}
+	case rds:
+		globalStore = nil
+	}
 }
 
 // Values is session item value
@@ -63,69 +78,60 @@ type RamStore struct {
 	store map[string]*Session
 }
 
-func (ram *RamStore) Save(sid string, key string, obj interface{}) (err error) {
+func (ram *RamStore) Create(s *Session) (err error) {
 
-	if err := isEmpty(sid, key); err != nil {
+	if err := isEmpty(s.UUID); err != nil {
 		return err
-	}
-
-	var bytes []byte
-
-	if bytes, err = json.Marshal(obj); err != nil {
-		return err
-	}
-
-	// 查询不到数据就不操作
-	if ram.store[sid] == nil {
-		return ErrSessionNoData
 	}
 
 	ram.mux.Lock()
-	ram.store[sid].Data[key] = bytes
+	ram.store[s.UUID] = s
 	ram.mux.Unlock()
 
 	return nil
 }
 
-func (ram *RamStore) Get(sid string, key string, obj interface{}) (err error) {
+func (ram *RamStore) Read(s *Session) (err error) {
 
-	if err := isEmpty(sid, key); err != nil {
+	if err := isEmpty(s.UUID); err != nil {
 		return err
 	}
 
-	var (
-		bytes []byte
-		ok    bool
-	)
-
-	if bytes, ok = ram.store[sid].Data[key]; !ok {
-		// 如果是空这个bs 也是空并且返回了
-		return ErrKeyNoData
+	if session, ok := ram.store[s.UUID]; ok {
+		s.Data = session.Data
+		return nil
 	}
 
-	return json.Unmarshal(bytes, obj)
+	return ErrSessionNoData
 }
 
-func (ram *RamStore) Remove(sid string, key string) error {
+func (ram *RamStore) Write(s *Session) (err error) {
 
-	if err := isEmpty(sid, key); err != nil {
+	if err := isEmpty(s.UUID); err != nil {
 		return err
 	}
+
 	ram.mux.Lock()
-	delete(ram.store[sid].Data, key)
+	if session, ok := ram.store[s.UUID]; ok {
+		session.Data = s.Data
+		return nil
+	}
 	ram.mux.Unlock()
+
 	return nil
 }
 
-func (ram *RamStore) Clean(sid string) {
+func (ram *RamStore) Remove(s *Session) (err error) {
 
-	if sid == "" {
-		return
+	if err := isEmpty(s.UUID); err != nil {
+		return err
 	}
 
 	ram.mux.Lock()
-	delete(ram.store, sid)
+	delete(ram.store, s.UUID)
 	ram.mux.Unlock()
+
+	return nil
 }
 
 // gc is ram garbage collection.
@@ -144,8 +150,8 @@ func (ram *RamStore) gc() {
 	}
 }
 
-func isEmpty(sid string, key string) error {
-	if key == "" || sid == "" {
+func isEmpty(str string) error {
+	if str == "" {
 		return ErrIsEmpty
 	}
 	return nil
@@ -154,54 +160,70 @@ func isEmpty(sid string, key string) error {
 type Session struct {
 	UUID string
 	Data Values
-	http.Cookie
-	mux        sync.Mutex
+	mux  sync.Mutex
+	// 可有可无的字段 可以倒推出来
 	CreateTime time.Duration
 	ExpireTime time.Duration
 }
 
 func (s *Session) Save(key string, obj interface{}) (err error) {
+
 	if s.Expired() {
 		return ErrAlreadyExpired
 	}
-	if err = globalStore.Save(s.UUID, key, obj); err != nil {
+
+	var bytes []byte
+
+	s.mux.Lock()
+	if s.Data == nil {
+		s.Data = make(Values)
+	}
+
+	if bytes, err = json.Marshal(obj); err != nil {
 		return
 	}
-	// 重置会话生命周期
-	s.renew()
-	return
+	s.Data[key] = bytes
+	s.mux.Unlock()
+
+	return globalStore.Write(s)
 }
 
 func (s *Session) Get(key string, obj interface{}) (err error) {
 	if s.Expired() {
 		return ErrAlreadyExpired
 	}
-	if err = globalStore.Get(s.UUID, key, obj); err != nil {
-		return
+
+	var (
+		bytes []byte
+		ok    bool
+	)
+
+	if err = globalStore.Read(s); err != nil {
+		return err
 	}
-	// 重置会话生命周期
-	s.renew()
-	return
+
+	if bytes, ok = s.Data[key]; !ok {
+		// 如果是空这个bs 也是空并且返回了
+		return ErrKeyNoData
+	}
+
+	return json.Unmarshal(bytes, obj)
 }
 
 func (s *Session) Remove(key string) error {
 	if s.Expired() {
 		return ErrAlreadyExpired
 	}
-	if err := globalStore.Remove(s.UUID, key); err != nil {
-		return err
-	}
-	// 重置会话生命周期
-	s.renew()
-	return nil
+
+	s.mux.Lock()
+	delete(s.Data, key)
+	s.mux.Unlock()
+
+	return globalStore.Write(s)
 }
 
 func (s *Session) Clean() {
-	globalStore.Clean(s.UUID)
-}
-
-func (s *Session) refresh() {
-
+	globalStore.Remove(s)
 }
 
 func (s *Session) Migrate() (*Session, error) {
@@ -212,18 +234,59 @@ func (s *Session) Expired() bool {
 	return s.ExpireTime <= time.Duration(time.Now().UnixNano())
 }
 
+func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) *Session {
+
+	// 初始化session参数
+	nowTime := time.Duration(time.Now().UnixNano())
+
+	session.UUID = uuid73()
+	session.CreateTime = nowTime
+	session.ExpireTime = nowTime + lifeTime
+
+	return session
+}
+
+func factory() *http.Cookie {
+	return &http.Cookie{
+		Domain:   globalConfig.Domain,
+		Path:     globalConfig.DomainPath,
+		Name:     globalConfig.CookieName,
+		Secure:   globalConfig.Secure,
+		HttpOnly: globalConfig.HttpOnly,
+	}
+}
+
+func GetSession(w http.ResponseWriter, req *http.Request) *Session {
+
+	var session Session
+	cookie, err := req.Cookie(globalConfig.CookieName)
+	if cookie == nil || err != nil || cookie.Value == "" {
+		return createSession(w, cookie, &session)
+	}
+
+	if len(cookie.Value) >= 73 {
+
+		session.UUID = cookie.Value
+		if err := globalStore.Read(&session); err != nil {
+			return createSession(w, cookie, &session)
+		}
+		cookie := factory()
+		cookie.Value = session.UUID
+		cookie.MaxAge = session.ExpireTime
+		http.SetCookie(w, cookie)
+	}
+
+	return &session
+}
+
+func uuid73() string {
+	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
+}
+
 func (s *Session) renew() {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	nowTime := time.Duration(time.Now().UnixNano())
 	s.ExpireTime = nowTime + lifeTime
 	s.CreateTime = nowTime
-}
-
-func Handler(w http.ResponseWriter, req *http.Request) *Session {
-	return nil
-}
-
-func UUID73() string {
-	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
 }
