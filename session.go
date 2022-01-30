@@ -41,6 +41,7 @@ var (
 	ErrKeyNoData      = errors.New("key no data")
 	ErrIsEmpty        = errors.New("key OR session id is empty")
 	ErrAlreadyExpired = errors.New("session already expired")
+	ErrSessionNoData  = errors.New("session no data")
 )
 
 func init() {
@@ -74,6 +75,11 @@ func (ram *RamStore) Save(sid string, key string, obj interface{}) (err error) {
 		return err
 	}
 
+	// 查询不到数据就不操作
+	if ram.store[sid] == nil {
+		return ErrSessionNoData
+	}
+
 	ram.mux.Lock()
 	ram.store[sid].Data[key] = bytes
 	ram.mux.Unlock()
@@ -87,11 +93,13 @@ func (ram *RamStore) Get(sid string, key string, obj interface{}) (err error) {
 		return err
 	}
 
-	var bytes []byte
+	var (
+		bytes []byte
+		ok    bool
+	)
 
-	if bs, ok := ram.store[sid].Data[key]; !ok {
+	if bytes, ok = ram.store[sid].Data[key]; !ok {
 		// 如果是空这个bs 也是空并且返回了
-		bytes = bs
 		return ErrKeyNoData
 	}
 
@@ -123,9 +131,9 @@ func (ram *RamStore) Clean(sid string) {
 // gc is ram garbage collection.
 func (ram *RamStore) gc() {
 	for {
-		// 30 minute garbage collection.
+		// 30 / 2 minute garbage collection.
 		// 这里可以并发优化 向消费通道里面发送
-		time.Sleep(lifeTime)
+		time.Sleep(lifeTime / 2)
 		for _, session := range ram.store {
 			if session.Expired() {
 				ram.mux.Lock()
