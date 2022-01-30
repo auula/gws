@@ -12,3 +12,4 @@ export DEEPSOURCE_DSN=$DEEPSOURCE_DSN
 
 # From the root directory, run the report coverage command
 ./bin/deepsource report --analyzer test-coverage --key go --value-file ./cover.out
+
