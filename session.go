@@ -53,8 +53,8 @@ type Values map[string]interface{}
 type Session struct {
 	Values
 	ID         string
-	CreateTime time.Duration
-	ExpireTime time.Duration
+	CreateTime time.Time
+	ExpireTime time.Time
 }
 
 // GetSession Get session data from the Request
@@ -117,18 +117,18 @@ func uuid73() string {
 
 // NewSession return new session
 func NewSession() *Session {
-	nowTime := time.Duration(time.Now().UnixNano())
+	nowTime := time.Now()
 	return &Session{
 		ID:         uuid73(),
 		Values:     make(Values),
-		ExpireTime: nowTime,
-		CreateTime: nowTime + lifeTime,
+		CreateTime: nowTime,
+		ExpireTime: nowTime.Add(lifeTime),
 	}
 }
 
 // Expired check current session whether expire
 func (s *Session) Expired() bool {
-	return s.ExpireTime <= time.Duration(time.Now().UnixNano())
+	return time.Duration(s.ExpireTime.UnixNano()) <= time.Duration(time.Now().UnixNano())
 }
 
 // Open Initialize storage with custom configuration
