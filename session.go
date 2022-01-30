@@ -59,13 +59,14 @@ type Session struct {
 
 // GetSession Get session data from the Request
 func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
-
+	debug.trace("Request:", req)
 	mux.Lock()
 	defer mux.Unlock()
 
 	var session Session
 	cookie, err := req.Cookie(globalConfig.CookieName)
 	if cookie == nil || err != nil {
+		debug.trace("cookie is empty:", cookie)
 		return createSession(w, cookie, &session)
 	}
 
@@ -76,15 +77,21 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 			return createSession(w, cookie, &session)
 		}
 	}
+
+	debug.trace("session:", session)
+
 	return &session, nil
 }
 
 // Sync save data modify
 func (s *Session) Sync() error {
+	debug.trace("session sync:", s)
+
 	return globalStore.Write(s)
 }
 
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) (*Session, error) {
+	debug.trace("begin create session", session)
 
 	session = NewSession()
 	if cookie == nil {
@@ -95,7 +102,12 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	if err := globalStore.Create(session); err != nil {
 		return nil, err
 	}
+
+	debug.trace("cookie:", cookie)
+
 	http.SetCookie(w, cookie)
+
+	debug.trace("end create session", session)
 	return session, nil
 }
 
@@ -133,6 +145,8 @@ func (s *Session) Expired() bool {
 
 // Open Initialize storage with custom configuration
 func Open(opt Configure) {
+	debug.trace("open:", opt)
+
 	globalConfig = opt.Parse()
 	switch globalConfig.store {
 	case ram:

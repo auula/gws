@@ -8,6 +8,7 @@ import (
 )
 
 func init() {
+	gws.Debug()
 	gws.Open(gws.DefaultRAMOption)
 }
 
