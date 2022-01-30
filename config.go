@@ -98,7 +98,6 @@ type RAMOption struct {
 func (opt RAMOption) Parse() (cfg *config) {
 
 	cfg = new(config)
-
 	cfg.store = ram
 	// 默认本机内存存储，只需要设置基本设置即可
 	cfg.RDSOption.option = opt.option
@@ -117,6 +116,7 @@ type RDSOption struct {
 
 func (opt RDSOption) Parse() (cfg *config) {
 
+	cfg = new(config)
 	cfg.store = rds
 	// redis存储相应的设置就会多一点，校验策略根据redis策略
 	cfg.RDSOption = opt
