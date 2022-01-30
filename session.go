@@ -33,15 +33,12 @@ import (
 )
 
 var (
-	// Global session storage controller
+	// global session storage controller
 	globalStore Storage
-
+	// global Configure controller
 	globalConfig *config
-
-	defaultCookie *http.Cookie
-
+	// concurrent safe mutex
 	mux sync.Mutex
-
 	// Universal error message
 	ErrKeyNoData      = errors.New("key no data")
 	ErrSessionNoData  = errors.New("session no data")
@@ -52,6 +49,7 @@ var (
 // Values is session item value
 type Values map[string]interface{}
 
+// Session is web session struct
 type Session struct {
 	Values
 	ID         string
@@ -59,6 +57,7 @@ type Session struct {
 	ExpireTime time.Duration
 }
 
+// GetSession Get session data from the Request
 func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 
 	mux.Lock()
@@ -80,33 +79,27 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 	return &session, nil
 }
 
+// Sync save data modify
 func (s *Session) Sync() error {
 	return globalStore.Write(s)
 }
 
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) (*Session, error) {
 
-	// 初始化session参数
-	nowTime := time.Duration(time.Now().UnixNano())
-	session.ID = uuid73()
-	session.CreateTime = nowTime
-	session.ExpireTime = nowTime + lifeTime
-	session.Values = make(Values)
-
-	// 初始化cookie
+	session = NewSession()
 	if cookie == nil {
 		cookie = factory()
 	}
 	cookie.Value = session.ID
-	cookie.MaxAge = int(globalConfig.LifeTime)
-	http.SetCookie(w, cookie)
+	cookie.MaxAge = int(globalConfig.LifeTime) / 1000000000
 	if err := globalStore.Create(session); err != nil {
 		return nil, err
 	}
-
+	http.SetCookie(w, cookie)
 	return session, nil
 }
 
+// factory return default config pointer
 func factory() *http.Cookie {
 	return &http.Cookie{
 		Domain:   globalConfig.Domain,
@@ -117,14 +110,28 @@ func factory() *http.Cookie {
 	}
 }
 
+// genreate session uuid length 73
 func uuid73() string {
 	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
 }
 
+// NewSession return new session
+func NewSession() *Session {
+	nowTime := time.Duration(time.Now().UnixNano())
+	return &Session{
+		ID:         uuid73(),
+		Values:     make(Values),
+		ExpireTime: nowTime,
+		CreateTime: nowTime + lifeTime,
+	}
+}
+
+// Expired check current session whether expire
 func (s *Session) Expired() bool {
 	return s.ExpireTime <= time.Duration(time.Now().UnixNano())
 }
 
+// Open Initialize storage with custom configuration
 func Open(opt Configure) {
 	globalConfig = opt.Parse()
 	switch globalConfig.store {

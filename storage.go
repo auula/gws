@@ -49,6 +49,8 @@ func (ram *RamStore) Create(s *Session) (err error) {
 func (ram *RamStore) Read(s *Session) (err error) {
 	if session, ok := ram.store[s.ID]; ok {
 		s.Values = session.Values
+		s.CreateTime = session.CreateTime
+		s.ExpireTime = session.ExpireTime
 		return nil
 	}
 	return ErrSessionNoData
@@ -57,9 +59,7 @@ func (ram *RamStore) Read(s *Session) (err error) {
 func (ram *RamStore) Write(s *Session) (err error) {
 	ram.mux.Lock()
 	defer ram.mux.Unlock()
-	if session, ok := ram.store[s.ID]; ok {
-		session.Values = s.Values
-	}
+	ram.store[s.ID] = s
 	return nil
 }
 

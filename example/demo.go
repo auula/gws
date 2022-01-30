@@ -23,7 +23,7 @@ func main() {
 
 	http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
 		session, _ := gws.GetSession(writer, request)
-		fmt.Fprintln(writer, fmt.Sprintf("foo value is : %s", session.Values["foo"]))
+		fmt.Fprintln(writer, fmt.Sprintf("foo value is : %s,session create time: %v", session.Values["foo"], session.CreateTime))
 	})
 
 	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
