@@ -75,8 +75,8 @@ type config struct {
 	RDSOption
 }
 
-// Configer is session storage config parameter parser.
-type Configer interface {
+// Configure is session storage config parameter parser.
+type Configure interface {
 	Parse() (cfg *config)
 }
 
@@ -96,6 +96,8 @@ type RAMOption struct {
 }
 
 func (opt RAMOption) Parse() (cfg *config) {
+
+	cfg = new(config)
 
 	cfg.store = ram
 	// 默认本机内存存储，只需要设置基本设置即可

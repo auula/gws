@@ -50,17 +50,17 @@ var (
 )
 
 // Values is session item value
-type Values map[string][]byte
+type Values map[string]interface{}
 
 type Session struct {
-	ID string
 	Values
-	// 可有可无的字段 可以倒推出来
+	ID         string
 	CreateTime time.Duration
 	ExpireTime time.Duration
 }
 
 func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
+
 	mux.Lock()
 	defer mux.Unlock()
 
@@ -71,23 +71,23 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 	}
 
 	if len(cookie.Value) >= 73 {
-
 		session.ID = cookie.Value
 		// 如果读不到说明存储里面没有
-		if old := globalStore.Read(session.ID); old == nil {
+		if globalStore.Read(&session) != nil {
 			return createSession(w, cookie, &session)
-		} else {
-			session = *old
 		}
 	}
 	return &session, nil
+}
+
+func (s *Session) Sync() error {
+	return globalStore.Write(s)
 }
 
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) (*Session, error) {
 
 	// 初始化session参数
 	nowTime := time.Duration(time.Now().UnixNano())
-
 	session.ID = uuid73()
 	session.CreateTime = nowTime
 	session.ExpireTime = nowTime + lifeTime
@@ -100,7 +100,6 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	cookie.Value = session.ID
 	cookie.MaxAge = int(globalConfig.LifeTime)
 	http.SetCookie(w, cookie)
-
 	if err := globalStore.Create(session); err != nil {
 		return nil, err
 	}
@@ -124,4 +123,17 @@ func uuid73() string {
 
 func (s *Session) Expired() bool {
 	return s.ExpireTime <= time.Duration(time.Now().UnixNano())
+}
+
+func Open(opt Configure) {
+	globalConfig = opt.Parse()
+	switch globalConfig.store {
+	case ram:
+		globalStore = &RamStore{
+			store: make(map[string]*Session),
+			mux:   sync.Mutex{},
+		}
+	case rds:
+		globalStore = nil
+	}
 }

@@ -28,7 +28,7 @@ import (
 )
 
 type Storage interface {
-	Read(sid string) *Session
+	Read(s *Session) (err error)
 	Write(s *Session) (err error)
 	Create(s *Session) (err error)
 	Remove(s *Session) (err error)
@@ -40,60 +40,33 @@ type RamStore struct {
 }
 
 func (ram *RamStore) Create(s *Session) (err error) {
-
-	if err := isEmpty(s.ID); err != nil {
-		return err
-	}
-
 	ram.mux.Lock()
+	defer ram.mux.Unlock()
 	ram.store[s.ID] = s
-	ram.mux.Unlock()
-
 	return nil
 }
 
-func (ram *RamStore) Read(sid string) *Session {
-
-	if err := isEmpty(sid); err != nil {
+func (ram *RamStore) Read(s *Session) (err error) {
+	if session, ok := ram.store[s.ID]; ok {
+		s.Values = session.Values
 		return nil
 	}
-	var (
-		session *Session
-		ok      bool
-	)
-	if session, ok = ram.store[sid]; !ok {
-		return nil
-	}
-
-	return session
+	return ErrSessionNoData
 }
 
 func (ram *RamStore) Write(s *Session) (err error) {
-
-	if err := isEmpty(s.ID); err != nil {
-		return err
-	}
-
 	ram.mux.Lock()
+	defer ram.mux.Unlock()
 	if session, ok := ram.store[s.ID]; ok {
 		session.Values = s.Values
-		return nil
 	}
-	ram.mux.Unlock()
-
 	return nil
 }
 
 func (ram *RamStore) Remove(s *Session) (err error) {
-
-	if err := isEmpty(s.ID); err != nil {
-		return err
-	}
-
 	ram.mux.Lock()
+	defer ram.mux.Unlock()
 	delete(ram.store, s.ID)
-	ram.mux.Unlock()
-
 	return nil
 }
 
@@ -111,11 +84,4 @@ func (ram *RamStore) gc() {
 			}
 		}
 	}
-}
-
-func isEmpty(str string) error {
-	if str == "" {
-		return ErrIsEmpty
-	}
-	return nil
 }
