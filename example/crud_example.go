@@ -25,6 +25,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/auula/gws"
@@ -76,7 +77,14 @@ func main() {
 	})
 
 	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
+		session, _ := gws.GetSession(writer, request)
 
+		log.Printf("old session %p \n", session)
+		session = gws.Migrate(writer, session)
+		log.Printf("old session %p \n", session)
+
+		jsonstr, _ := json.Marshal(session.Values["user"])
+		fmt.Fprintln(writer, string(jsonstr))
 	})
 	_ = http.ListenAndServe(":8080", nil)
 }

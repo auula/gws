@@ -108,6 +108,47 @@ func (s *Session) Del(key string, v interface{}) {
 	delete(s.Values, key)
 }
 
+// // Migrate session data
+// func (s *Session) Migrate() *Session {
+// 	var ns = NewSession()
+// 	s.rw.RLock()
+// 	ns.Values = s.Values
+// 	s.rw.RUnlock()
+
+// 这里其实要原子操作
+// func() {
+// 	globalStore.Write(ns)
+// 	globalStore.Remove(s)
+// }()
+
+// 	return ns
+// }
+
+var migrateMux sync.Mutex
+
+func Migrate(write http.ResponseWriter, old *Session) *Session {
+	var (
+		ns     = NewSession()
+		cookie = NewCookie()
+	)
+
+	// 这里不能使用session内置锁
+	// 因为这个操作是一个全局操作
+	migrateMux.Lock()
+	ns.Values = old.Values
+	cookie.Value = ns.ID
+	http.SetCookie(write, cookie)
+	migrateMux.Unlock()
+
+	// 这里其实要原子操作
+	func() {
+		globalStore.Write(ns)
+		globalStore.Remove(old)
+	}()
+
+	return ns
+}
+
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) (*Session, error) {
 	debug.trace("begin create session", session)
 
@@ -152,6 +193,7 @@ func NewSession() *Session {
 	return &Session{
 		session: session{
 			ID:         uuid73(),
+			rw:         sync.RWMutex{},
 			Values:     make(Values),
 			CreateTime: nowTime,
 			ExpireTime: nowTime.Add(lifeTime),
