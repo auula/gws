@@ -23,8 +23,11 @@
 package gws
 
 import (
+	"context"
 	"sync"
 	"time"
+
+	"github.com/go-redis/redis/v8"
 )
 
 type Storage interface {
@@ -88,4 +91,40 @@ func (ram *RamStore) gc() {
 			}
 		}
 	}
+}
+
+var (
+	ctx = context.Background()
+)
+
+type RdsStore struct {
+	rw    sync.RWMutex
+	store *redis.Client
+}
+
+func NewRds() *RdsStore {
+	if globalConfig == nil {
+		return nil
+	}
+	return &RdsStore{
+		rw: sync.RWMutex{},
+		store: redis.NewClient(&redis.Options{
+			Addr:     globalConfig.Address,
+			Password: globalConfig.Password,
+			DB:       int(globalConfig.Index),
+			PoolSize: int(globalConfig.PoolSize),
+		}),
+	}
+}
+
+func (rds *RdsStore) Read(s *Session) (err error) {
+	panic("implement me")
+}
+
+func (rds *RdsStore) Write(s *Session) (err error) {
+	panic("implement me")
+}
+
+func (rds *RdsStore) Remove(s *Session) (err error) {
+	panic("implement me")
 }

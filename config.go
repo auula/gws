@@ -61,6 +61,7 @@ var (
 		var rdsopt RDSOption
 		rdsopt.option = defaultOption
 
+		rdsopt.Index = 6
 		rdsopt.Prefix = prefix
 		rdsopt.PoolSize = 10
 		rdsopt.Password = passwd
@@ -125,6 +126,7 @@ func (opt RAMOption) Parse() (cfg *config) {
 // RDSOption is Redis storage config parameter option.
 type RDSOption struct {
 	option
+	Index    uint8  `json:"db_index,omitempty"`
 	Prefix   string `json:"prefix,omitempty"`
 	Address  string `json:"address,omitempty"`
 	Password string `json:"password,omitempty"`
@@ -155,6 +157,10 @@ func verifyCfg(cfg *config) *config {
 	// ram校验通过直接返回
 	if cfg.store == ram || cfg.store == customize {
 		return cfg
+	}
+
+	if cfg.Index > 16 {
+		cfg.Index = 6
 	}
 
 	if cfg.PoolSize <= 0 {
