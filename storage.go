@@ -38,6 +38,15 @@ type RamStore struct {
 	store map[string]*Session
 }
 
+func NewRAM() *RamStore {
+	s := &RamStore{
+		store: make(map[string]*Session),
+		rw:    sync.RWMutex{},
+	}
+	go s.gc()
+	return s
+}
+
 func (ram *RamStore) Read(s *Session) (err error) {
 	ram.rw.RLock()
 	defer ram.rw.RUnlock()
@@ -70,6 +79,7 @@ func (ram *RamStore) gc() {
 		// 30 / 2 minute garbage collection.
 		// 这里可以并发优化 向消费通道里面发送
 		time.Sleep(lifeTime / 2)
+		debug.trace("gc running...")
 		for _, session := range ram.store {
 			if session.Expired() {
 				ram.rw.Lock()

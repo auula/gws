@@ -212,11 +212,13 @@ func Open(opt Configure) {
 	globalConfig = opt.Parse()
 	switch globalConfig.store {
 	case ram:
-		globalStore = &RamStore{
-			store: make(map[string]*Session),
-			rw:    sync.RWMutex{},
-		}
+		globalStore = NewRAM()
 	case rds:
 		globalStore = nil
 	}
+}
+
+func StoreFactory(opt Options, store Storage) {
+	globalConfig = opt.Parse()
+	globalStore = store
 }

@@ -20,6 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//+build ignore
+
 package main
 
 import (
@@ -32,7 +34,7 @@ import (
 )
 
 func init() {
-	gws.Debug(true)
+	gws.Debug(false)
 	gws.Open(gws.DefaultRAMOption)
 }
 
@@ -51,7 +53,6 @@ func main() {
 			Email:    "tom@xx.com",
 			Age:      22,
 		}
-
 		session.Sync()
 
 		fmt.Fprintln(writer, "set value successful.")
@@ -70,21 +71,22 @@ func main() {
 	})
 
 	http.HandleFunc("/userinfo", func(writer http.ResponseWriter, request *http.Request) {
-		session, _ := gws.GetSession(writer, request)
-
+		session, err := gws.GetSession(writer, request)
+		if err != nil {
+			fmt.Fprintln(writer, err.Error())
+			return
+		}
 		jsonstr, _ := json.Marshal(session.Values["user"])
 		fmt.Fprintln(writer, string(jsonstr))
 	})
 
 	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
-
 		var (
 			session *gws.Session
 			err     error
 		)
 
 		session, _ = gws.GetSession(writer, request)
-
 		log.Printf("old session %p \n", session)
 
 		if session, err = gws.Migrate(writer, session); err != nil {
@@ -93,9 +95,9 @@ func main() {
 		}
 
 		log.Printf("old session %p \n", session)
-
 		jsonstr, _ := json.Marshal(session.Values["user"])
 		fmt.Fprintln(writer, string(jsonstr))
 	})
+
 	_ = http.ListenAndServe(":8080", nil)
 }

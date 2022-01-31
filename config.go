@@ -33,8 +33,9 @@ import (
 type store uint8
 
 const (
-	ram      store = iota // session storage ram type
-	rds                   // session storage rds type
+	ram store = iota // session storage ram type
+	rds              // session storage rds type
+	customize
 	prefix   = "gws_id"
 	lifeTime = time.Duration(1800) * time.Second
 )
@@ -90,18 +91,34 @@ type option struct {
 	Domain     string        `json:"domain,omitempty"`
 }
 
+type Options struct {
+	option
+}
+
+func NewOptions() Options {
+	return Options{
+		option: defaultOption,
+	}
+}
+
+func (opt Options) Parse() (cfg *config) {
+	cfg = new(config)
+	cfg.store = customize
+	// 默认本机内存存储，只需要设置基本设置即可
+	cfg.RDSOption.option = opt.option
+	return verifyCfg(cfg)
+}
+
 // RAMOption is RAM storage config parameter option.
 type RAMOption struct {
 	option
 }
 
 func (opt RAMOption) Parse() (cfg *config) {
-
 	cfg = new(config)
 	cfg.store = ram
 	// 默认本机内存存储，只需要设置基本设置即可
 	cfg.RDSOption.option = opt.option
-
 	return verifyCfg(cfg)
 }
 
@@ -115,12 +132,10 @@ type RDSOption struct {
 }
 
 func (opt RDSOption) Parse() (cfg *config) {
-
 	cfg = new(config)
 	cfg.store = rds
 	// redis存储相应的设置就会多一点，校验策略根据redis策略
 	cfg.RDSOption = opt
-
 	return verifyCfg(cfg)
 }
 
@@ -138,7 +153,7 @@ func verifyCfg(cfg *config) *config {
 	}
 
 	// ram校验通过直接返回
-	if cfg.store == ram {
+	if cfg.store == ram || cfg.store == customize {
 		return cfg
 	}
 
