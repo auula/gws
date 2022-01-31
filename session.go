@@ -133,18 +133,12 @@ func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 		ns     = NewSession()
 		cookie = NewCookie()
 	)
-
 	// 这里不能使用session内置锁
 	// 因为这个操作是一个全局操作
 	migrateMux.Lock()
-
+	defer migrateMux.Unlock()
 	ns.Values = old.Values
 	cookie.Value = ns.ID
-	http.SetCookie(write, cookie)
-
-	migrateMux.Unlock()
-
-	// 这里其实要原子操作
 	return ns,
 		func() error {
 			if ns.Sync() != nil {
@@ -153,6 +147,8 @@ func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 			if globalStore.Remove(old) != nil {
 				return ErrRemoveSessionFail
 			}
+			// 只有上面两个成功了才刷新cookie
+			http.SetCookie(write, cookie)
 			return nil
 		}()
 }
