@@ -77,10 +77,21 @@ func main() {
 	})
 
 	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
-		session, _ := gws.GetSession(writer, request)
+
+		var (
+			session *gws.Session
+			err     error
+		)
+
+		session, _ = gws.GetSession(writer, request)
 
 		log.Printf("old session %p \n", session)
-		session = gws.Migrate(writer, session)
+
+		if session, err = gws.Migrate(writer, session); err != nil {
+			fmt.Fprintln(writer, err.Error())
+			return
+		}
+
 		log.Printf("old session %p \n", session)
 
 		jsonstr, _ := json.Marshal(session.Values["user"])

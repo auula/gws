@@ -40,10 +40,12 @@ var (
 	// concurrent safe mutex
 	mux sync.Mutex
 	// Universal error message
-	ErrKeyNoData      = errors.New("key no data")
-	ErrSessionNoData  = errors.New("session no data")
-	ErrIsEmpty        = errors.New("key OR session id is empty")
-	ErrAlreadyExpired = errors.New("session already expired")
+	ErrKeyNoData          = errors.New("key no data")
+	ErrSessionNoData      = errors.New("session no data")
+	ErrIsEmpty            = errors.New("key OR session id is empty")
+	ErrAlreadyExpired     = errors.New("session already expired")
+	ErrRemoveSessionFail  = errors.New("remove session fail")
+	ErrMigrateSessionFail = errors.New("migrate session fail")
 )
 
 // Values is session item value
@@ -126,7 +128,7 @@ func (s *Session) Del(key string, v interface{}) {
 
 var migrateMux sync.Mutex
 
-func Migrate(write http.ResponseWriter, old *Session) *Session {
+func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 	var (
 		ns     = NewSession()
 		cookie = NewCookie()
@@ -135,18 +137,24 @@ func Migrate(write http.ResponseWriter, old *Session) *Session {
 	// 这里不能使用session内置锁
 	// 因为这个操作是一个全局操作
 	migrateMux.Lock()
+
 	ns.Values = old.Values
 	cookie.Value = ns.ID
 	http.SetCookie(write, cookie)
+
 	migrateMux.Unlock()
 
 	// 这里其实要原子操作
-	func() {
-		globalStore.Write(ns)
-		globalStore.Remove(old)
-	}()
-
-	return ns
+	return ns,
+		func() error {
+			if ns.Sync() != nil {
+				return ErrMigrateSessionFail
+			}
+			if globalStore.Remove(old) != nil {
+				return ErrRemoveSessionFail
+			}
+			return nil
+		}()
 }
 
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) (*Session, error) {
