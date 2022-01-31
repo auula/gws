@@ -23,6 +23,7 @@
 package gws
 
 import (
+	"fmt"
 	"log"
 	"os"
 )
@@ -43,11 +44,11 @@ type tracer struct {
 // trace debug application
 func (t *tracer) trace(v ...interface{}) {
 	if t.enable {
-		t.log.Println(v...)
+		t.log.Output(2, fmt.Sprintln(v...))
 	}
 }
 
 // Enable program debug function
-func Debug() {
-	debug.enable = true
+func Debug(flag bool) {
+	debug.enable = flag
 }

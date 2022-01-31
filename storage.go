@@ -30,20 +30,12 @@ import (
 type Storage interface {
 	Read(s *Session) (err error)
 	Write(s *Session) (err error)
-	Create(s *Session) (err error)
 	Remove(s *Session) (err error)
 }
 
 type RamStore struct {
 	mux   sync.Mutex
 	store map[string]*Session
-}
-
-func (ram *RamStore) Create(s *Session) (err error) {
-	ram.mux.Lock()
-	defer ram.mux.Unlock()
-	ram.store[s.ID] = s
-	return nil
 }
 
 func (ram *RamStore) Read(s *Session) (err error) {

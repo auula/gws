@@ -60,6 +60,7 @@ type Session struct {
 // GetSession Get session data from the Request
 func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 	debug.trace("Request:", req)
+
 	mux.Lock()
 	defer mux.Unlock()
 
@@ -72,21 +73,18 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 
 	if len(cookie.Value) >= 73 {
 		session.ID = cookie.Value
-		// 如果读不到说明存储里面没有
 		if globalStore.Read(&session) != nil {
 			return createSession(w, cookie, &session)
 		}
 	}
 
 	debug.trace("session:", session)
-
 	return &session, nil
 }
 
 // Sync save data modify
 func (s *Session) Sync() error {
 	debug.trace("session sync:", s)
-
 	return globalStore.Write(s)
 }
 
@@ -98,8 +96,8 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 		cookie = factory()
 	}
 	cookie.Value = session.ID
-	cookie.MaxAge = int(globalConfig.LifeTime) / 1000000000
-	if err := globalStore.Create(session); err != nil {
+	cookie.MaxAge = int(globalConfig.LifeTime) / 1e9
+	if err := globalStore.Write(session); err != nil {
 		return nil, err
 	}
 
