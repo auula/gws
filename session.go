@@ -37,8 +37,8 @@ var (
 	globalStore Storage
 	// global Configure controller
 	globalConfig *config
-	// concurrent safe mutex
-	mux sync.Mutex
+	// session concurrent safe mutex
+	migrateMux sync.Mutex
 	// Universal error message
 	ErrKeyNoData          = errors.New("key no data")
 	ErrSessionNoData      = errors.New("session no data")
@@ -67,9 +67,6 @@ type session struct {
 // GetSession Get session data from the Request
 func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 	debug.trace("Request:", req)
-
-	mux.Lock()
-	defer mux.Unlock()
 
 	var session Session
 	cookie, err := req.Cookie(globalConfig.CookieName)
@@ -125,8 +122,6 @@ func (s *Session) Del(key string, v interface{}) {
 
 // 	return ns
 // }
-
-var migrateMux sync.Mutex
 
 func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 	var (
