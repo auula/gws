@@ -34,11 +34,13 @@ type Storage interface {
 }
 
 type RamStore struct {
-	mux   sync.Mutex
+	rw    sync.RWMutex
 	store map[string]*Session
 }
 
 func (ram *RamStore) Read(s *Session) (err error) {
+	ram.rw.RLock()
+	defer ram.rw.RUnlock()
 	if session, ok := ram.store[s.ID]; ok {
 		s.Values = session.Values
 		s.CreateTime = session.CreateTime
@@ -49,15 +51,15 @@ func (ram *RamStore) Read(s *Session) (err error) {
 }
 
 func (ram *RamStore) Write(s *Session) (err error) {
-	ram.mux.Lock()
-	defer ram.mux.Unlock()
+	ram.rw.Lock()
+	defer ram.rw.Unlock()
 	ram.store[s.ID] = s
 	return nil
 }
 
 func (ram *RamStore) Remove(s *Session) (err error) {
-	ram.mux.Lock()
-	defer ram.mux.Unlock()
+	ram.rw.Lock()
+	defer ram.rw.Unlock()
 	delete(ram.store, s.ID)
 	return nil
 }
@@ -70,9 +72,9 @@ func (ram *RamStore) gc() {
 		time.Sleep(lifeTime / 2)
 		for _, session := range ram.store {
 			if session.Expired() {
-				ram.mux.Lock()
+				ram.rw.Lock()
 				delete(ram.store, session.ID)
-				ram.mux.Unlock()
+				ram.rw.Unlock()
 			}
 		}
 	}

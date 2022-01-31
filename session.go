@@ -85,6 +85,7 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 // Sync save data modify
 func (s *Session) Sync() error {
 	debug.trace("session sync:", s)
+	// ???
 	return globalStore.Write(s)
 }
 
@@ -150,7 +151,7 @@ func Open(opt Configure) {
 	case ram:
 		globalStore = &RamStore{
 			store: make(map[string]*Session),
-			mux:   sync.Mutex{},
+			rw:    sync.RWMutex{},
 		}
 	case rds:
 		globalStore = nil
