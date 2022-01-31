@@ -51,6 +51,10 @@ type Values map[string]interface{}
 
 // Session is web session struct
 type Session struct {
+	session
+}
+
+type session struct {
 	Values
 	ID         string
 	rw         sync.RWMutex
@@ -109,7 +113,7 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 
 	session = NewSession()
 	if cookie == nil {
-		cookie = factory()
+		cookie = NewCookie()
 	}
 	cookie.Value = session.ID
 	cookie.MaxAge = int(globalConfig.LifeTime) / 1e9
@@ -125,8 +129,8 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	return session, nil
 }
 
-// factory return default config pointer
-func factory() *http.Cookie {
+// NewCookie return default config cookie pointer
+func NewCookie() *http.Cookie {
 	return &http.Cookie{
 		Domain:   globalConfig.Domain,
 		Path:     globalConfig.DomainPath,
@@ -144,11 +148,14 @@ func uuid73() string {
 // NewSession return new session
 func NewSession() *Session {
 	nowTime := time.Now()
+	// 通过内部类型提升到外层，防止调用者使用Session直接初始化
 	return &Session{
-		ID:         uuid73(),
-		Values:     make(Values),
-		CreateTime: nowTime,
-		ExpireTime: nowTime.Add(lifeTime),
+		session: session{
+			ID:         uuid73(),
+			Values:     make(Values),
+			CreateTime: nowTime,
+			ExpireTime: nowTime.Add(lifeTime),
+		},
 	}
 }
 
