@@ -53,6 +53,7 @@ type Values map[string]interface{}
 type Session struct {
 	Values
 	ID         string
+	rw         sync.RWMutex
 	CreateTime time.Time
 	ExpireTime time.Time
 }
@@ -78,7 +79,7 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 		}
 	}
 
-	debug.trace("session:", session)
+	debug.trace("session:", &session)
 	return &session, nil
 }
 
@@ -87,6 +88,20 @@ func (s *Session) Sync() error {
 	debug.trace("session sync:", s)
 	// ???
 	return globalStore.Write(s)
+}
+
+// Set: concurrent safe set value
+func (s *Session) Set(key string, v interface{}) {
+	s.rw.Lock()
+	defer s.rw.Lock()
+	s.Values[key] = v
+}
+
+// Del: concurrent safe delete key
+func (s *Session) Del(key string, v interface{}) {
+	s.rw.Lock()
+	defer s.rw.Lock()
+	delete(s.Values, key)
 }
 
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) (*Session, error) {
