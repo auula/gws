@@ -211,12 +211,12 @@ func Open(opt Configure) {
 
 	globalConfig = opt.Parse()
 	switch globalConfig.store {
-	case ram:
+	case ram, customize:
 		globalStore = NewRAM()
 	case rds:
 		globalStore = nil
 	default:
-		globalStore = NewRAM()
+		panic("unknown storage.")
 	}
 }
 

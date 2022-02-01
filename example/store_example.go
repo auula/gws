@@ -33,29 +33,29 @@ import (
 
 func init() {
 	gws.Debug(false)
-	gws.StoreFactory(gws.NewOptions(), &SQLStore{})
+	gws.StoreFactory(gws.NewOptions(), &FileStore{})
 }
 
-type SQLStore struct{}
+type FileStore struct{}
 
-func (S SQLStore) Read(s *gws.Session) (err error) {
+func (fs FileStore) Read(s *gws.Session) (err error) {
 	panic("implement me")
 }
 
-func (S SQLStore) Write(s *gws.Session) (err error) {
+func (fs FileStore) Write(s *gws.Session) (err error) {
 	panic("implement me")
 }
 
-func (S SQLStore) Remove(s *gws.Session) (err error) {
+func (fs FileStore) Remove(s *gws.Session) (err error) {
 	panic("implement me")
 }
 
 func main() {
 
 	http.HandleFunc("/panic", func(writer http.ResponseWriter, request *http.Request) {
-		session, _ := gws.GetSession(writer, request)
 
-		session.Values["user"] = "bar"
+		session, _ := gws.GetSession(writer, request)
+		session.Values["foo"] = "bar"
 		session.Sync()
 
 		fmt.Fprintln(writer, "set value successful.")

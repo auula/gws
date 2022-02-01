@@ -23,7 +23,10 @@
 package gws
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
+	"fmt"
 	"sync"
 	"time"
 
@@ -93,10 +96,6 @@ func (ram *RamStore) gc() {
 	}
 }
 
-var (
-	ctx = context.Background()
-)
-
 type RdsStore struct {
 	rw    sync.RWMutex
 	store *redis.Client
@@ -118,13 +117,66 @@ func NewRds() *RdsStore {
 }
 
 func (rds *RdsStore) Read(s *Session) (err error) {
-	panic("implement me")
+	timeout, cancelFunc := timeoutCtx(3)
+	rds.rw.RLock()
+	defer func() {
+		cancelFunc()
+		rds.rw.RUnlock()
+	}()
+	var val string
+	if val, err = rds.store.Get(timeout, formatPrefix(s.ID)).Result(); err == redis.Nil {
+		return err
+	}
+	return decoder([]byte(val), s)
 }
 
 func (rds *RdsStore) Write(s *Session) (err error) {
-	panic("implement me")
+	bytes, err := encoder(s)
+	if err != nil {
+		return err
+	}
+	timeout, cancelFunc := timeoutCtx(3)
+	rds.rw.Lock()
+	defer func() {
+		cancelFunc()
+		rds.rw.Unlock()
+	}()
+	return rds.store.Set(timeout, formatPrefix(s.ID), bytes, expire(s.ExpireTime)).Err()
 }
 
 func (rds *RdsStore) Remove(s *Session) (err error) {
-	panic("implement me")
+	timeout, cancelFunc := timeoutCtx(3)
+	rds.rw.Lock()
+	defer func() {
+		cancelFunc()
+		rds.rw.Unlock()
+	}()
+	return rds.store.Del(timeout, formatPrefix(s.ID)).Err()
+}
+
+func formatPrefix(sid string) string {
+	return fmt.Sprintf("%s:%s", globalConfig.Prefix, sid)
+}
+
+func timeoutCtx(second uint8) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), time.Duration(second)*time.Second)
+}
+
+func expire(t time.Time) time.Duration {
+	return t.Sub(time.Now())
+}
+
+func encoder(s *Session) ([]byte, error) {
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(s); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+func decoder(v []byte, s *Session) error {
+	reader := bytes.NewReader(v)
+	dec := gob.NewDecoder(reader)
+	return dec.Decode(s)
 }
