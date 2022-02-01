@@ -30,7 +30,9 @@ import (
 	"time"
 )
 
-type store uint8
+type (
+	store uint8
+)
 
 const (
 	ram store = iota // session storage ram type
@@ -46,18 +48,18 @@ var (
 		LifeTime:   lifeTime,
 		CookieName: prefix,
 		Domain:     "",
-		DomainPath: "/",
+		Path:       "/",
 		HttpOnly:   true,
 		Secure:     true,
 	}
 
 	// DefaultRAMOption default RAM config parameter option.
-	DefaultRAMOption = &RAMOption{
+	DefaultRAMOptions = &RAMOption{
 		option: defaultOption,
 	}
 
-	// DefaultRDSOption default RDS config parameter option.
-	DefaultRDSOption = func(ip string, port uint16, passwd string) *RDSOption {
+	// NewRDSOption default RDS config parameter option.
+	NewRDSOptions = func(ip string, port uint16, passwd string, opts ...func(*RDSOption)) *RDSOption {
 		var rdsopt RDSOption
 		rdsopt.option = defaultOption
 
@@ -67,26 +69,47 @@ var (
 		rdsopt.Password = passwd
 		rdsopt.Address = fmt.Sprintf("%s:%v", ip, port)
 
+		for _, opt := range opts {
+			opt(&rdsopt)
+		}
+
 		return &rdsopt
 	}
+
+	// Index set redis database number
+	Index = func(number uint8) func(*RDSOption) {
+		return func(r *RDSOption) {
+			r.Index = number
+		}
+	}
+
+	// PoolSize set redis connection  pool size
+	PoolSize = func(poolsize uint8) func(*RDSOption) {
+		return func(r *RDSOption) {
+			r.PoolSize = poolsize
+		}
+	}
+
+	// Prefix set redis key prefix
+	Prefix = func(prefix string) func(*RDSOption) {
+		return func(r *RDSOption) {
+			r.Prefix = prefix
+		}
+	}
+
+	// Opts set base option
+	Opts = func(opt Options) func(*RDSOption) {
+		return func(r *RDSOption) {
+			r.option = opt.option
+		}
+	}
 )
-
-// config is session storage config parameter.
-type config struct {
-	store `json:"store,omitempty"`
-	RDSOption
-}
-
-// Configure is session storage config parameter parser.
-type Configure interface {
-	Parse() (cfg *config)
-}
 
 // option type is default config parameter option.
 type option struct {
 	LifeTime   time.Duration `json:"life_time,omitempty"`
 	CookieName string        `json:"cookie_name,omitempty"`
-	DomainPath string        `json:"domain_path,omitempty"`
+	Path       string        `json:"path,omitempty"`
 	HttpOnly   bool          `json:"http_only,omitempty"`
 	Secure     bool          `json:"secure,omitempty"`
 	Domain     string        `json:"domain,omitempty"`
@@ -96,31 +119,53 @@ type Options struct {
 	option
 }
 
-func NewOptions() Options {
-	return Options{
-		option: defaultOption,
+var (
+	LifeTime = func(d time.Duration) func(*Options) {
+		return func(o *Options) {
+			o.LifeTime = d
+		}
 	}
-}
+	CookieName = func(cn string) func(*Options) {
+		return func(o *Options) {
+			o.CookieName = cn
+		}
+	}
+	Path = func(path string) func(*Options) {
+		return func(o *Options) {
+			o.Path = path
+		}
+	}
+	HttpOnly = func(b bool) func(*Options) {
+		return func(o *Options) {
+			o.HttpOnly = b
+		}
+	}
+	Secure = func(b bool) func(*Options) {
+		return func(o *Options) {
+			o.Secure = b
+		}
+	}
+	Domain = func(domain string) func(*Options) {
+		return func(o *Options) {
+			o.Domain = domain
+		}
+	}
+)
 
-func (opt Options) Parse() (cfg *config) {
-	cfg = new(config)
-	cfg.store = customize
-	// 默认本机内存存储，只需要设置基本设置即可
-	cfg.RDSOption.option = opt.option
-	return verifyCfg(cfg)
+func NewOptions(opts ...func(*Options)) Options {
+	var opt Options
+	opt.option = defaultOption
+
+	for _, v := range opts {
+		v(&opt)
+	}
+
+	return opt
 }
 
 // RAMOption is RAM storage config parameter option.
 type RAMOption struct {
 	option
-}
-
-func (opt RAMOption) Parse() (cfg *config) {
-	cfg = new(config)
-	cfg.store = ram
-	// 默认本机内存存储，只需要设置基本设置即可
-	cfg.RDSOption.option = opt.option
-	return verifyCfg(cfg)
 }
 
 // RDSOption is Redis storage config parameter option.
@@ -131,6 +176,33 @@ type RDSOption struct {
 	Address  string `json:"address,omitempty"`
 	Password string `json:"password,omitempty"`
 	PoolSize uint8  `json:"pool_size,omitempty"`
+}
+
+// Configure is session storage config parameter parser.
+type Configure interface {
+	Parse() (cfg *config)
+}
+
+// config is session storage config parameter.
+type config struct {
+	store `json:"store,omitempty"`
+	RDSOption
+}
+
+func (opt Options) Parse() (cfg *config) {
+	cfg = new(config)
+	cfg.store = customize
+	// 默认本机内存存储，只需要设置基本设置即可
+	cfg.RDSOption.option = opt.option
+	return verifyCfg(cfg)
+}
+
+func (opt RAMOption) Parse() (cfg *config) {
+	cfg = new(config)
+	cfg.store = ram
+	// 默认本机内存存储，只需要设置基本设置即可
+	cfg.RDSOption.option = opt.option
+	return verifyCfg(cfg)
 }
 
 func (opt RDSOption) Parse() (cfg *config) {
@@ -147,7 +219,7 @@ func verifyCfg(cfg *config) *config {
 	if cfg.CookieName == "" {
 		panic("cookie name is empty.")
 	}
-	if cfg.DomainPath == "" {
+	if cfg.Path == "" {
 		panic("domain path is empty.")
 	}
 	if cfg.LifeTime <= 0 {

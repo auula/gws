@@ -173,7 +173,7 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 func NewCookie() *http.Cookie {
 	return &http.Cookie{
 		Domain:   globalConfig.Domain,
-		Path:     globalConfig.DomainPath,
+		Path:     globalConfig.Path,
 		Name:     globalConfig.CookieName,
 		Secure:   globalConfig.Secure,
 		HttpOnly: globalConfig.HttpOnly,
@@ -215,6 +215,8 @@ func Open(opt Configure) {
 		globalStore = NewRAM()
 	case rds:
 		globalStore = nil
+	default:
+		globalStore = NewRAM()
 	}
 }
 

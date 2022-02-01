@@ -35,7 +35,9 @@ import (
 
 func init() {
 	gws.Debug(false)
-	gws.Open(gws.DefaultRAMOption)
+	// gws.Open(gws.NewRDSOptions("", 1999, ""))
+	// gws.Open(gws.DefaultRAMOptions)
+	gws.Open(gws.NewOptions())
 }
 
 type UserInfo struct {
