@@ -35,15 +35,16 @@ type (
 )
 
 const (
-	ram store = iota // session storage ram type
-	rds              // session storage rds type
+	ram store = iota // Session storage ram type
+	rds              // Session storage rds type
 	customize
-	prefix   = "gws_id"
-	lifeTime = time.Duration(1800) * time.Second
+
+	prefix   = "gws_id"                          // Default perfix
+	lifeTime = time.Duration(1800) * time.Second // Default session lifetime
 )
 
 var (
-	// default option
+	// Default option
 	defaultOption = option{
 		LifeTime:   lifeTime,
 		CookieName: prefix,
@@ -115,6 +116,7 @@ type option struct {
 	Domain     string        `json:"domain,omitempty"`
 }
 
+// Options type is default config parameter option.
 type Options struct {
 	option
 }
@@ -152,14 +154,13 @@ var (
 	}
 )
 
+// NewOptions: Initialize default config.
 func NewOptions(opts ...func(*Options)) Options {
 	var opt Options
 	opt.option = defaultOption
-
 	for _, v := range opts {
 		v(&opt)
 	}
-
 	return opt
 }
 
@@ -256,5 +257,6 @@ func verifyCfg(cfg *config) *config {
 			panic("remote server port illegal.")
 		}
 	}
+	debug.trace(cfg)
 	return cfg
 }
