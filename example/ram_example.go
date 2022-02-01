@@ -35,9 +35,17 @@ import (
 
 func init() {
 	gws.Debug(false)
+
+	// var opt gws.RAMOption
+	// opt.Domain = "www.ibyte.me"
+	// gws.Open(opt)
+
 	// gws.Open(gws.NewRDSOptions("", 1999, ""))
-	// gws.Open(gws.DefaultRAMOptions)
-	gws.Open(gws.NewOptions())
+	// gws.Open(gws.NewOptions())
+	// gws.Open(gws.NewOptions(gws.Domain(""), gws.CookieName("")))
+
+	gws.Open(gws.DefaultRAMOptions)
+
 }
 
 type UserInfo struct {

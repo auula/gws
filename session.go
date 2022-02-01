@@ -33,16 +33,19 @@ import (
 )
 
 var (
-	// global session storage controller
+	// Global session storage controller
 	globalStore Storage
-	// global Configure controller
+
+	// Global Configure controller
 	globalConfig *config
-	// session concurrent safe mutex
+
+	// Session concurrent safe mutex
 	migrateMux sync.Mutex
+
 	// Universal error message
 	ErrKeyNoData          = errors.New("key no data")
 	ErrSessionNoData      = errors.New("session no data")
-	ErrIsEmpty            = errors.New("key OR session id is empty")
+	ErrIsEmpty            = errors.New("key or session id is empty")
 	ErrAlreadyExpired     = errors.New("session already expired")
 	ErrRemoveSessionFail  = errors.New("remove session fail")
 	ErrMigrateSessionFail = errors.New("migrate session fail")
@@ -64,14 +67,13 @@ type session struct {
 	Values
 }
 
-// GetSession Get session data from the Request
+// GetSession: Get session data from the Request
 func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
-
 	var session Session
 
 	cookie, err := req.Cookie(globalConfig.CookieName)
-	if cookie == nil || err != nil || cookie.Value == "" {
-		debug.trace("cookie is empty:", cookie)
+	if cookie == nil || err != nil {
+		debug.trace(cookie)
 		return createSession(w, cookie, &session)
 	}
 
@@ -82,13 +84,13 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 		}
 	}
 
-	debug.trace("session:", &session)
+	debug.trace(&session)
 	return &session, nil
 }
 
-// Sync save data modify
+// Sync: save data modify
 func (s *Session) Sync() error {
-	debug.trace("session sync:", s)
+	debug.trace(s)
 	return globalStore.Write(s)
 }
 
@@ -106,13 +108,13 @@ func (s *Session) Del(key string, v interface{}) {
 	delete(s.Values, key)
 }
 
+// Migrate: migrate old session data to new session
 func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 	var (
 		ns     = NewSession()
 		cookie = NewCookie()
 	)
-	// 这里不能使用session内置锁
-	// 因为这个操作是一个全局操作
+
 	migrateMux.Lock()
 	defer migrateMux.Unlock()
 	ns.Values = old.Values
@@ -127,7 +129,6 @@ func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 			if globalStore.Remove(old) != nil {
 				return ErrRemoveSessionFail
 			}
-			// 只有上面两个成功了才刷新cookie
 			http.SetCookie(write, cookie)
 			return nil
 		}()
@@ -137,7 +138,7 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 
 	session = NewSession()
 
-	debug.trace("create session", session)
+	debug.trace(session)
 
 	if cookie == nil {
 		cookie = NewCookie()
@@ -148,15 +149,15 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 		return nil, err
 	}
 
-	debug.trace("cookie:", cookie)
+	debug.trace(cookie)
 
 	http.SetCookie(w, cookie)
 
-	debug.trace("end create session", session)
+	debug.trace(session)
 	return session, nil
 }
 
-// NewCookie return default config cookie pointer
+// NewCookie: return default config cookie pointer
 func NewCookie() *http.Cookie {
 	return &http.Cookie{
 		Domain:   globalConfig.Domain,
@@ -167,18 +168,17 @@ func NewCookie() *http.Cookie {
 	}
 }
 
-// genreate session uuid length 73
-func uuid73() string {
+// UUID73: Genreate session uuid length 73
+func UUID73() string {
 	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
 }
 
-// NewSession return new session
+// NewSession: return new session
 func NewSession() *Session {
 	nowTime := time.Now()
-	// 通过内部类型提升到外层，防止调用者使用Session直接初始化
 	return &Session{
 		session: session{
-			ID:         uuid73(),
+			ID:         UUID73(),
 			rw:         sync.RWMutex{},
 			Values:     make(Values),
 			CreateTime: nowTime,
@@ -187,14 +187,14 @@ func NewSession() *Session {
 	}
 }
 
-// Expired check current session whether expire
+// Expired: check current session whether expire
 func (s *Session) Expired() bool {
 	return time.Duration(s.ExpireTime.UnixNano()) <= time.Duration(time.Now().UnixNano())
 }
 
-// Open Initialize storage with custom configuration
+// Open: Initialize storage with custom configuration
 func Open(opt Configure) {
-	debug.trace("open:", opt)
+	debug.trace(opt)
 
 	globalConfig = opt.Parse()
 	switch globalConfig.store {
@@ -213,6 +213,7 @@ func Open(opt Configure) {
 	}
 }
 
+// StoreFactory: Initialize custom storage media
 func StoreFactory(opt Options, store Storage) {
 	globalConfig = opt.Parse()
 	globalStore = store

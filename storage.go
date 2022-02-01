@@ -32,17 +32,21 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
+// Storage: global session data store interface.
+// You can customize the storage medium by implementing this interface.
 type Storage interface {
 	Read(s *Session) (err error)
 	Write(s *Session) (err error)
 	Remove(s *Session) (err error)
 }
 
+// RamStore: Local memory storage.
 type RamStore struct {
 	rw    sync.RWMutex
 	store map[string]*Session
 }
 
+// NewRAM: return local memory storage.
 func NewRAM() *RamStore {
 	s := &RamStore{
 		store: make(map[string]*Session),
@@ -61,6 +65,7 @@ func (ram *RamStore) Read(s *Session) (err error) {
 		s.ExpireTime = session.ExpireTime
 		return nil
 	}
+	debug.trace(s)
 	return ErrSessionNoData
 }
 
@@ -68,6 +73,7 @@ func (ram *RamStore) Write(s *Session) (err error) {
 	ram.rw.Lock()
 	defer ram.rw.Unlock()
 	ram.store[s.ID] = s
+	debug.trace(s)
 	return nil
 }
 
@@ -75,14 +81,14 @@ func (ram *RamStore) Remove(s *Session) (err error) {
 	ram.rw.Lock()
 	defer ram.rw.Unlock()
 	delete(ram.store, s.ID)
+	debug.trace(s)
 	return nil
 }
 
 // gc is ram garbage collection.
 func (ram *RamStore) gc() {
 	for {
-		// 30 / 2 minute garbage collection.
-		// 这里可以并发优化 向消费通道里面发送
+		// life time / 2 minute garbage collection.
 		time.Sleep(lifeTime / 2)
 		debug.trace("gc running...")
 		for _, session := range ram.store {
@@ -95,11 +101,13 @@ func (ram *RamStore) gc() {
 	}
 }
 
+// RdsStore: remote redis server storage.
 type RdsStore struct {
 	rw    sync.RWMutex
 	store *redis.Client
 }
 
+// NewRds: return redis server storage.
 func NewRds() *RdsStore {
 	if globalConfig == nil {
 		return nil
@@ -126,7 +134,7 @@ func (rds *RdsStore) Read(s *Session) (err error) {
 	if val, err = rds.store.Get(timeout, formatPrefix(s.ID)).Bytes(); err != nil {
 		return err
 	}
-	debug.trace("redis read decoder:", val)
+	debug.trace(val)
 	return json.Unmarshal(val, s)
 }
 
@@ -141,6 +149,7 @@ func (rds *RdsStore) Write(s *Session) (err error) {
 		cancelFunc()
 		rds.rw.Unlock()
 	}()
+	debug.trace(s)
 	return rds.store.Set(timeout, formatPrefix(s.ID), bytes, expire(s.ExpireTime)).Err()
 }
 
@@ -151,6 +160,7 @@ func (rds *RdsStore) Remove(s *Session) (err error) {
 		cancelFunc()
 		rds.rw.Unlock()
 	}()
+	debug.trace(s)
 	return rds.store.Del(timeout, formatPrefix(s.ID)).Err()
 }
 
@@ -159,7 +169,7 @@ func formatPrefix(sid string) string {
 }
 
 func timeoutCtx() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), time.Duration(8)*time.Second)
+	return context.WithTimeout(context.Background(), time.Duration(3)*time.Second)
 }
 
 func expire(t time.Time) time.Duration {
