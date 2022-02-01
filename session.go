@@ -57,20 +57,20 @@ type Session struct {
 }
 
 type session struct {
-	Values
 	ID         string
 	rw         sync.RWMutex
 	CreateTime time.Time
 	ExpireTime time.Time
+	Values
 }
 
 // GetSession Get session data from the Request
 func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
-	debug.trace("Request:", req)
 
 	var session Session
+
 	cookie, err := req.Cookie(globalConfig.CookieName)
-	if cookie == nil || err != nil {
+	if cookie == nil || err != nil || cookie.Value == "" {
 		debug.trace("cookie is empty:", cookie)
 		return createSession(w, cookie, &session)
 	}
@@ -89,39 +89,22 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 // Sync save data modify
 func (s *Session) Sync() error {
 	debug.trace("session sync:", s)
-	// ???
 	return globalStore.Write(s)
 }
 
 // Set: concurrent safe set value
 func (s *Session) Set(key string, v interface{}) {
 	s.rw.Lock()
-	defer s.rw.Lock()
+	defer s.rw.Unlock()
 	s.Values[key] = v
 }
 
 // Del: concurrent safe delete key
 func (s *Session) Del(key string, v interface{}) {
 	s.rw.Lock()
-	defer s.rw.Lock()
+	defer s.rw.Unlock()
 	delete(s.Values, key)
 }
-
-// // Migrate session data
-// func (s *Session) Migrate() *Session {
-// 	var ns = NewSession()
-// 	s.rw.RLock()
-// 	ns.Values = s.Values
-// 	s.rw.RUnlock()
-
-// 这里其实要原子操作
-// func() {
-// 	globalStore.Write(ns)
-// 	globalStore.Remove(s)
-// }()
-
-// 	return ns
-// }
 
 func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 	var (
@@ -134,6 +117,8 @@ func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 	defer migrateMux.Unlock()
 	ns.Values = old.Values
 	cookie.Value = ns.ID
+	cookie.MaxAge = int(globalConfig.LifeTime) / 1e9
+
 	return ns,
 		func() error {
 			if ns.Sync() != nil {
@@ -149,9 +134,11 @@ func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 }
 
 func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) (*Session, error) {
-	debug.trace("begin create session", session)
 
 	session = NewSession()
+
+	debug.trace("create session", session)
+
 	if cookie == nil {
 		cookie = NewCookie()
 	}
@@ -214,7 +201,13 @@ func Open(opt Configure) {
 	case ram, customize:
 		globalStore = NewRAM()
 	case rds:
-		globalStore = nil
+		rdb := NewRds()
+		timeout, cancelFunc := timeoutCtx()
+		defer cancelFunc()
+		if err := rdb.store.Ping(timeout).Err(); err != nil {
+			panic(err.Error())
+		}
+		globalStore = rdb
 	default:
 		panic("unknown storage.")
 	}

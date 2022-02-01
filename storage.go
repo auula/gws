@@ -23,9 +23,8 @@
 package gws
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -117,25 +116,26 @@ func NewRds() *RdsStore {
 }
 
 func (rds *RdsStore) Read(s *Session) (err error) {
-	timeout, cancelFunc := timeoutCtx(3)
+	timeout, cancelFunc := timeoutCtx()
 	rds.rw.RLock()
 	defer func() {
 		cancelFunc()
 		rds.rw.RUnlock()
 	}()
-	var val string
-	if val, err = rds.store.Get(timeout, formatPrefix(s.ID)).Result(); err == redis.Nil {
+	var val []byte
+	if val, err = rds.store.Get(timeout, formatPrefix(s.ID)).Bytes(); err != nil {
 		return err
 	}
-	return decoder([]byte(val), s)
+	debug.trace("redis read decoder:", val)
+	return json.Unmarshal(val, s)
 }
 
 func (rds *RdsStore) Write(s *Session) (err error) {
-	bytes, err := encoder(s)
+	bytes, err := json.Marshal(s)
 	if err != nil {
 		return err
 	}
-	timeout, cancelFunc := timeoutCtx(3)
+	timeout, cancelFunc := timeoutCtx()
 	rds.rw.Lock()
 	defer func() {
 		cancelFunc()
@@ -145,7 +145,7 @@ func (rds *RdsStore) Write(s *Session) (err error) {
 }
 
 func (rds *RdsStore) Remove(s *Session) (err error) {
-	timeout, cancelFunc := timeoutCtx(3)
+	timeout, cancelFunc := timeoutCtx()
 	rds.rw.Lock()
 	defer func() {
 		cancelFunc()
@@ -158,25 +158,10 @@ func formatPrefix(sid string) string {
 	return fmt.Sprintf("%s:%s", globalConfig.Prefix, sid)
 }
 
-func timeoutCtx(second uint8) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), time.Duration(second)*time.Second)
+func timeoutCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), time.Duration(8)*time.Second)
 }
 
 func expire(t time.Time) time.Duration {
 	return t.Sub(time.Now())
-}
-
-func encoder(s *Session) ([]byte, error) {
-	var buffer bytes.Buffer
-	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(s); err != nil {
-		return nil, err
-	}
-	return buffer.Bytes(), nil
-}
-
-func decoder(v []byte, s *Session) error {
-	reader := bytes.NewReader(v)
-	dec := gob.NewDecoder(reader)
-	return dec.Decode(s)
 }

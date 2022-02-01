@@ -51,9 +51,9 @@ func main() {
 		session, _ := gws.GetSession(writer, request)
 
 		session.Values["user"] = &UserInfo{
-			UserName: "Tom",
-			Email:    "tom@xx.com",
-			Age:      22,
+			UserName: "Leon Ding",
+			Email:    "ding@ibyte.me",
+			Age:      21,
 		}
 		session.Sync()
 
@@ -96,7 +96,7 @@ func main() {
 			return
 		}
 
-		log.Printf("old session %p \n", session)
+		log.Printf("new session %p \n", session)
 		jsonstr, _ := json.Marshal(session.Values["user"])
 		fmt.Fprintln(writer, string(jsonstr))
 	})
