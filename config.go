@@ -37,7 +37,7 @@ type (
 const (
 	ram store = iota // Session storage ram type
 	rds              // Session storage rds type
-	customize
+	def
 
 	prefix   = "gws_id"                          // Default perfix
 	lifeTime = time.Duration(1800) * time.Second // Default session lifetime
@@ -192,7 +192,7 @@ type config struct {
 
 func (opt Options) Parse() (cfg *config) {
 	cfg = new(config)
-	cfg.store = customize
+	cfg.store = def
 	// 默认本机内存存储，只需要设置基本设置即可
 	cfg.RDSOption.option = opt.option
 	return verifyCfg(cfg)
@@ -214,6 +214,14 @@ func (opt RDSOption) Parse() (cfg *config) {
 	return verifyCfg(cfg)
 }
 
+var (
+	DetectionEntrys = []string{
+		"life_time",
+		"cookie_name",
+		"path",
+	}
+)
+
 func verifyCfg(cfg *config) *config {
 
 	// 通用校验
@@ -228,7 +236,7 @@ func verifyCfg(cfg *config) *config {
 	}
 
 	// ram校验通过直接返回
-	if cfg.store == ram || cfg.store == customize {
+	if cfg.store == ram || cfg.store == def {
 		return cfg
 	}
 
