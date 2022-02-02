@@ -61,13 +61,8 @@ func main() {
 	http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
 		session, _ := gws.GetSession(writer, request)
 
-		if bytes, ok := session.Values["user"]; ok {
-			jsonstr, _ := json.Marshal(bytes)
-			fmt.Fprintln(writer, string(jsonstr))
-			return
-		}
-
-		fmt.Fprintln(writer, "no data")
+		jsonstr, _ := json.Marshal(session.Values["user"])
+		fmt.Fprintln(writer, string(jsonstr))
 	})
 
 	http.HandleFunc("/userinfo", func(writer http.ResponseWriter, request *http.Request) {
