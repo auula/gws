@@ -139,3 +139,59 @@ func TestStoreFactory(t *testing.T) {
 		})
 	}
 }
+
+func TestRAMStore(t *testing.T) {
+
+	t.Log("init ram store")
+	nowTime := time.Now()
+	uuid := uuid73()
+	Open(DefaultRAMOptions)
+
+	t.Log("store write session data")
+	if globalStore.Write(&Session{
+		session{
+			id:         uuid,
+			rw:         sync.RWMutex{},
+			Values:     make(Values),
+			CreateTime: nowTime,
+			ExpireTime: nowTime.Add(lifeTime),
+		},
+	}) != nil {
+		t.Error("save session data fail.")
+	}
+
+	var session Session
+	session.id = uuid
+
+	t.Log("store read session data")
+
+	if err := globalStore.Read(&session); err != nil {
+		t.Error(err)
+	}
+
+	t.Log("set and get session data")
+
+	session.Set("foo", "bar")
+	session.Sync()
+	if session.Values["foo"] != "bar" {
+		t.Error("data synchronization failed")
+	}
+	session.Del("foo")
+	//session.Sync()
+	if _, ok := session.Values["foo"]; ok {
+		t.Error("data synchronization failed")
+	}
+
+	if session.ID() != uuid {
+		t.Error("data synchronization failed")
+	}
+
+	t.Log("store remove session data")
+	if globalStore.Remove(&session) != nil {
+		t.Error("data synchronization failed")
+	}
+
+	if err := globalStore.Read(&session); err != ErrSessionNoData {
+		t.Error(err)
+	}
+}

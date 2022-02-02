@@ -106,7 +106,7 @@ func (s *Session) Set(key string, v interface{}) {
 }
 
 // Del concurrent safe delete key
-func (s *Session) Del(key string, v interface{}) {
+func (s *Session) Del(key string) {
 	s.rw.Lock()
 	defer s.rw.Unlock()
 	delete(s.Values, key)
