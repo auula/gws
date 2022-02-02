@@ -59,7 +59,7 @@ func NewRAM() *RamStore {
 func (ram *RamStore) Read(s *Session) (err error) {
 	ram.rw.RLock()
 	defer ram.rw.RUnlock()
-	if session, ok := ram.store[s.ID]; ok {
+	if session, ok := ram.store[s.id]; ok {
 		s.Values = session.Values
 		s.CreateTime = session.CreateTime
 		s.ExpireTime = session.ExpireTime
@@ -72,7 +72,7 @@ func (ram *RamStore) Read(s *Session) (err error) {
 func (ram *RamStore) Write(s *Session) (err error) {
 	ram.rw.Lock()
 	defer ram.rw.Unlock()
-	ram.store[s.ID] = s
+	ram.store[s.id] = s
 	debug.trace(s)
 	return nil
 }
@@ -80,7 +80,7 @@ func (ram *RamStore) Write(s *Session) (err error) {
 func (ram *RamStore) Remove(s *Session) (err error) {
 	ram.rw.Lock()
 	defer ram.rw.Unlock()
-	delete(ram.store, s.ID)
+	delete(ram.store, s.id)
 	debug.trace(s)
 	return nil
 }
@@ -94,7 +94,7 @@ func (ram *RamStore) gc() {
 		for _, session := range ram.store {
 			if session.Expired() {
 				ram.rw.Lock()
-				delete(ram.store, session.ID)
+				delete(ram.store, session.id)
 				ram.rw.Unlock()
 			}
 		}
@@ -109,9 +109,6 @@ type RdsStore struct {
 
 // NewRds: return redis server storage.
 func NewRds() *RdsStore {
-	if globalConfig == nil {
-		return nil
-	}
 	return &RdsStore{
 		rw: sync.RWMutex{},
 		store: redis.NewClient(&redis.Options{
@@ -131,7 +128,7 @@ func (rds *RdsStore) Read(s *Session) (err error) {
 		rds.rw.RUnlock()
 	}()
 	var val []byte
-	if val, err = rds.store.Get(timeout, formatPrefix(s.ID)).Bytes(); err != nil {
+	if val, err = rds.store.Get(timeout, formatPrefix(s.id)).Bytes(); err != nil {
 		return err
 	}
 	debug.trace(val)
@@ -150,7 +147,7 @@ func (rds *RdsStore) Write(s *Session) (err error) {
 		rds.rw.Unlock()
 	}()
 	debug.trace(s)
-	return rds.store.Set(timeout, formatPrefix(s.ID), bytes, expire(s.ExpireTime)).Err()
+	return rds.store.Set(timeout, formatPrefix(s.id), bytes, expire(s.ExpireTime)).Err()
 }
 
 func (rds *RdsStore) Remove(s *Session) (err error) {
@@ -161,7 +158,7 @@ func (rds *RdsStore) Remove(s *Session) (err error) {
 		rds.rw.Unlock()
 	}()
 	debug.trace(s)
-	return rds.store.Del(timeout, formatPrefix(s.ID)).Err()
+	return rds.store.Del(timeout, formatPrefix(s.id)).Err()
 }
 
 func formatPrefix(sid string) string {

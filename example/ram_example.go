@@ -63,6 +63,7 @@ func main() {
 			Email:    "ding@ibyte.me",
 			Age:      21,
 		}
+
 		session.Sync()
 
 		fmt.Fprintln(writer, "set value successful.")

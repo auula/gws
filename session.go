@@ -60,7 +60,7 @@ type Session struct {
 }
 
 type session struct {
-	ID         string
+	id         string
 	rw         sync.RWMutex
 	CreateTime time.Time
 	ExpireTime time.Time
@@ -78,7 +78,7 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 	}
 
 	if len(cookie.Value) >= 73 {
-		session.ID = cookie.Value
+		session.id = cookie.Value
 		if globalStore.Read(&session) != nil {
 			return createSession(w, cookie, &session)
 		}
@@ -86,6 +86,11 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 
 	debug.trace(&session)
 	return &session, nil
+}
+
+// ID: return session id
+func (s *Session) ID() string {
+	return s.id
 }
 
 // Sync: save data modify
@@ -116,10 +121,10 @@ func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 	)
 
 	migrateMux.Lock()
-	defer migrateMux.Unlock()
 	ns.Values = old.Values
-	cookie.Value = ns.ID
+	cookie.Value = ns.id
 	cookie.MaxAge = int(globalConfig.LifeTime) / 1e9
+	migrateMux.Unlock()
 
 	return ns,
 		func() error {
@@ -143,7 +148,7 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	if cookie == nil {
 		cookie = NewCookie()
 	}
-	cookie.Value = session.ID
+	cookie.Value = session.id
 	cookie.MaxAge = int(globalConfig.LifeTime) / 1e9
 	if err := globalStore.Write(session); err != nil {
 		return nil, err
@@ -168,8 +173,8 @@ func NewCookie() *http.Cookie {
 	}
 }
 
-// UUID73: Genreate session uuid length 73
-func UUID73() string {
+// uuid73: Genreate session uuid length 73
+func uuid73() string {
 	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
 }
 
@@ -178,7 +183,7 @@ func NewSession() *Session {
 	nowTime := time.Now()
 	return &Session{
 		session: session{
-			ID:         UUID73(),
+			id:         uuid73(),
 			rw:         sync.RWMutex{},
 			Values:     make(Values),
 			CreateTime: nowTime,
@@ -197,8 +202,9 @@ func Open(opt Configure) {
 	debug.trace(opt)
 
 	globalConfig = opt.Parse()
+
 	switch globalConfig.store {
-	case ram, customize:
+	case ram:
 		globalStore = NewRAM()
 	case rds:
 		rdb := NewRds()
@@ -209,7 +215,7 @@ func Open(opt Configure) {
 		}
 		globalStore = rdb
 	default:
-		panic("unknown storage.")
+		globalStore = NewRAM()
 	}
 }
 
