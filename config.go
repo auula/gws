@@ -24,7 +24,9 @@ package gws
 
 import (
 	"fmt"
-	"reflect"
+	"net"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -192,7 +194,6 @@ type config struct {
 func (opt Options) Parse() (cfg *config) {
 	cfg = new(config)
 	cfg.store = def
-	// 默认本机内存存储，只需要设置基本设置即可
 	cfg.RDSOption.option = opt.option
 	return verifyCfg(cfg)
 }
@@ -200,7 +201,6 @@ func (opt Options) Parse() (cfg *config) {
 func (opt RAMOption) Parse() (cfg *config) {
 	cfg = new(config)
 	cfg.store = ram
-	// 默认本机内存存储，只需要设置基本设置即可
 	cfg.RDSOption.option = opt.option
 	return verifyCfg(cfg)
 }
@@ -208,66 +208,53 @@ func (opt RAMOption) Parse() (cfg *config) {
 func (opt RDSOption) Parse() (cfg *config) {
 	cfg = new(config)
 	cfg.store = rds
-	// redis存储相应的设置就会多一点，校验策略根据redis策略
 	cfg.RDSOption = opt
 	return verifyCfg(cfg)
 }
 
+// 此处验证方法比较low，后面改成反射写
 func verifyCfg(cfg *config) *config {
 
-	tys := reflect.TypeOf(cfg)
-
-	for i := 0; i < tys.NumField(); i++ {
-		field := tys.Field(i)
-		if field.Tag.Get("verify") == "true" {
-			val := reflect.ValueOf(field)
-			if val.Elem().IsValid() {
-				panic(field.Tag.Get("msg"))
-			}
-		}
+	// 通用校验
+	if cfg.CookieName == "" {
+		panic("cookie name is empty.")
+	}
+	if cfg.Path == "" {
+		panic("domain path is empty.")
+	}
+	if cfg.LifeTime <= 0 {
+		cfg.LifeTime = lifeTime
 	}
 
-	// // 通用校验
-	// if cfg.CookieName == "" {
-	// 	panic("cookie name is empty.")
-	// }
-	// if cfg.Path == "" {
-	// 	panic("domain path is empty.")
-	// }
-	// if cfg.LifeTime <= 0 {
-	// 	cfg.LifeTime = lifeTime
-	// }
+	if cfg.store == ram || cfg.store == def {
+		return cfg
+	}
 
-	// // ram校验通过直接返回
-	// if cfg.store == ram || cfg.store == def {
-	// 	return cfg
-	// }
+	if cfg.Index > 16 {
+		cfg.Index = 6
+	}
 
-	// if cfg.Index > 16 {
-	// 	cfg.Index = 6
-	// }
+	if cfg.PoolSize <= 0 {
+		cfg.PoolSize = 10
+	}
 
-	// if cfg.PoolSize <= 0 {
-	// 	cfg.PoolSize = 10
-	// }
+	if cfg.Prefix == "" {
+		cfg.Prefix = prefix
+	}
 
-	// if cfg.Prefix == "" {
-	// 	cfg.Prefix = prefix
-	// }
+	if cfg.Password == "" {
+		panic("remote server login passwd is empty.")
+	}
 
-	// if cfg.Password == "" {
-	// 	panic("remote server login passwd is empty.")
-	// }
-
-	// // 针对特定存储校验
-	// if net.ParseIP(strings.Split(cfg.Address, ":")[0]) == nil {
-	// 	panic("remote ip address illegal.")
-	// }
-	// if matched, err := regexp.MatchString("^[0-9]*$", strings.Split(cfg.Address, ":")[1]); err == nil {
-	// 	if !matched {
-	// 		panic("remote server port illegal.")
-	// 	}
-	// }
+	// 针对特定存储校验
+	if net.ParseIP(strings.Split(cfg.Address, ":")[0]) == nil {
+		panic("remote ip address illegal.")
+	}
+	if matched, err := regexp.MatchString("^[0-9]*$", strings.Split(cfg.Address, ":")[1]); err == nil {
+		if !matched {
+			panic("remote server port illegal.")
+		}
+	}
 	debug.trace(cfg)
 	return cfg
 }
