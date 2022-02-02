@@ -55,12 +55,12 @@ var (
 		Secure:     true,
 	}
 
-	// DefaultRAMOption default RAM config parameter option.
+	// DefaultRAMOptions default RAM config parameter option.
 	DefaultRAMOptions = &RAMOption{
 		option: defaultOption,
 	}
 
-	// NewRDSOption default RDS config parameter option.
+	// NewRDSOptions default RDS config parameter option.
 	NewRDSOptions = func(ip string, port uint16, passwd string, opts ...func(*RDSOption)) *RDSOption {
 		var rdsopt RDSOption
 		rdsopt.option = defaultOption
@@ -78,28 +78,28 @@ var (
 		return &rdsopt
 	}
 
-	// Index set redis database number
+	// WithIndex set redis database number
 	WithIndex = func(number uint8) func(*RDSOption) {
 		return func(r *RDSOption) {
 			r.Index = number
 		}
 	}
 
-	// PoolSize set redis connection  pool size
+	// WithPoolSize set redis connection  pool size
 	WithPoolSize = func(poolsize uint8) func(*RDSOption) {
 		return func(r *RDSOption) {
 			r.PoolSize = poolsize
 		}
 	}
 
-	// Prefix set redis key prefix
+	// WithPrefix set redis key prefix
 	WithPrefix = func(prefix string) func(*RDSOption) {
 		return func(r *RDSOption) {
 			r.Prefix = prefix
 		}
 	}
 
-	// Opts set base option
+	// WithOpts set base option
 	WithOpts = func(opt Options) func(*RDSOption) {
 		return func(r *RDSOption) {
 			r.option = opt.option

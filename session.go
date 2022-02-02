@@ -42,7 +42,6 @@ var (
 	// Session concurrent safe mutex
 	migrateMux sync.Mutex
 
-	// Universal error message
 	ErrKeyNoData          = errors.New("key no data")
 	ErrSessionNoData      = errors.New("session no data")
 	ErrIsEmpty            = errors.New("key or session id is empty")
@@ -67,7 +66,7 @@ type session struct {
 	Values
 }
 
-// GetSession: Get session data from the Request
+// GetSession Get session data from the Request
 func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 	var session Session
 
@@ -88,32 +87,32 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 	return &session, nil
 }
 
-// ID: return session id
+// ID return session id
 func (s *Session) ID() string {
 	return s.id
 }
 
-// Sync: save data modify
+// Sync save data modify
 func (s *Session) Sync() error {
 	debug.trace(s)
 	return globalStore.Write(s)
 }
 
-// Set: concurrent safe set value
+// Set concurrent safe set value
 func (s *Session) Set(key string, v interface{}) {
 	s.rw.Lock()
 	defer s.rw.Unlock()
 	s.Values[key] = v
 }
 
-// Del: concurrent safe delete key
+// Del concurrent safe delete key
 func (s *Session) Del(key string, v interface{}) {
 	s.rw.Lock()
 	defer s.rw.Unlock()
 	delete(s.Values, key)
 }
 
-// Migrate: migrate old session data to new session
+// Migrate migrate old session data to new session
 func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 	var (
 		ns     = NewSession()
@@ -162,7 +161,7 @@ func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session)
 	return session, nil
 }
 
-// NewCookie: return default config cookie pointer
+// NewCookie return default config cookie pointer
 func NewCookie() *http.Cookie {
 	return &http.Cookie{
 		Domain:   globalConfig.Domain,
@@ -173,12 +172,12 @@ func NewCookie() *http.Cookie {
 	}
 }
 
-// uuid73: Genreate session uuid length 73
+// uuid73 generate session uuid length 73
 func uuid73() string {
 	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
 }
 
-// NewSession: return new session
+// NewSession return new session
 func NewSession() *Session {
 	nowTime := time.Now()
 	return &Session{
@@ -192,12 +191,12 @@ func NewSession() *Session {
 	}
 }
 
-// Expired: check current session whether expire
+// Expired check current session whether expire
 func (s *Session) Expired() bool {
 	return time.Duration(s.ExpireTime.UnixNano()) <= time.Duration(time.Now().UnixNano())
 }
 
-// Open: Initialize storage with custom configuration
+// Open Initialize storage with custom configuration
 func Open(opt Configure) {
 	debug.trace(opt)
 
@@ -219,7 +218,7 @@ func Open(opt Configure) {
 	}
 }
 
-// StoreFactory: Initialize custom storage media
+// StoreFactory Initialize custom storage media
 func StoreFactory(opt Options, store Storage) {
 	globalConfig = opt.Parse()
 	globalStore = store

@@ -32,7 +32,7 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// Storage: global session data store interface.
+// Storage global session data store interface.
 // You can customize the storage medium by implementing this interface.
 type Storage interface {
 	Read(s *Session) (err error)
@@ -40,13 +40,13 @@ type Storage interface {
 	Remove(s *Session) (err error)
 }
 
-// RamStore: Local memory storage.
+// RamStore Local memory storage.
 type RamStore struct {
 	rw    sync.RWMutex
 	store map[string]*Session
 }
 
-// NewRAM: return local memory storage.
+// NewRAM return local memory storage.
 func NewRAM() *RamStore {
 	s := &RamStore{
 		store: make(map[string]*Session),
@@ -88,7 +88,7 @@ func (ram *RamStore) Remove(s *Session) (err error) {
 // gc is ram garbage collection.
 func (ram *RamStore) gc() {
 	for {
-		// life time / 2 minute garbage collection.
+		// lifetime / 2 minute garbage collection.
 		time.Sleep(lifeTime / 2)
 		debug.trace("gc running...")
 		for _, session := range ram.store {
@@ -101,13 +101,13 @@ func (ram *RamStore) gc() {
 	}
 }
 
-// RdsStore: remote redis server storage.
+// RdsStore remote redis server storage.
 type RdsStore struct {
 	rw    sync.RWMutex
 	store *redis.Client
 }
 
-// NewRds: return redis server storage.
+// NewRds return redis server storage.
 func NewRds() *RdsStore {
 	return &RdsStore{
 		rw: sync.RWMutex{},
