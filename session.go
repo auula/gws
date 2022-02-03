@@ -1,6 +1,6 @@
 // MIT License
 
-// Copyright (c) 2021 Jarvib Ding
+// Copyright (c) 2022 Leon Ding
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,210 +20,194 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// annotation:
-//1. support redis storage.
-//2. support memory storage.
-//3. defend against man-in-the-middle attacks
-
-package sessionx
+package gws
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/barkimedes/go-deepcopy"
 	"github.com/google/uuid"
 )
 
-type method func(f func())
-
 var (
-	rwm  sync.RWMutex
-	mgr  *manager
-	lock = map[string]method{
-		"W": func(f func()) {
-			rwm.Lock()
-			defer rwm.Unlock()
-			f()
-		},
-		"R": func(f func()) {
-			rwm.RLock()
-			defer rwm.RUnlock()
-			f()
-		},
-	}
+	// Global session storage controller
+	globalStore Storage
+
+	// Global Configure controller
+	globalConfig *Config
+
+	// Session concurrent safe mutex
+	migrateMux sync.Mutex
+
+	ErrKeyNoData          = errors.New("key no data")
+	ErrSessionNoData      = errors.New("session no data")
+	ErrIsEmpty            = errors.New("key or session id is empty")
+	ErrAlreadyExpired     = errors.New("session already expired")
+	ErrRemoveSessionFail  = errors.New("remove session fail")
+	ErrMigrateSessionFail = errors.New("migrate session fail")
 )
 
-// See doc.go file.
+// Values is session item value
+type Values map[string]interface{}
+
+// Session is web session struct
 type Session struct {
-	// sessionId
-	ID string
-	// session timeout
-	Expires time.Time
-	// map to store data
-	Data map[string]interface{}
-	_w   http.ResponseWriter
-	// each session corresponds to a cookie
-	Cookie *http.Cookie
+	session
 }
 
-// Get Retrieves the stored element data from the session via the key
-func (s *Session) Get(key string) (interface{}, error) {
-	err := mgr.store.Read(s)
-	if err != nil {
+// session struct
+type session struct {
+	id         string
+	CreateTime time.Time
+	ExpireTime time.Time
+	Values
+}
+
+// GetSession Get session data from the Request
+func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
+	var session Session
+
+	cookie, err := req.Cookie(globalConfig.CookieName)
+	if cookie == nil || err != nil {
+		debug.trace(cookie)
+		return createSession(w, cookie)
+	}
+
+	if len(cookie.Value) >= 73 {
+		session.id = cookie.Value
+		if globalStore.Read(&session) != nil {
+			return createSession(w, cookie)
+		}
+	}
+
+	debug.trace(&session)
+	return &session, nil
+}
+
+// ID return session id
+func (s *Session) ID() string {
+	return s.id
+}
+
+// Sync save data modify
+func (s *Session) Sync() error {
+	debug.trace(s)
+	return globalStore.Write(s)
+}
+
+// Migrate migrate old session data to new session
+func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
+	var (
+		ns     = NewSession()
+		cookie = NewCookie()
+	)
+
+	migrateMux.Lock()
+	ns.Values = old.Values
+	cookie.Value = ns.id
+	cookie.MaxAge = int(globalConfig.LifeTime) / 1e9
+	migrateMux.Unlock()
+
+	return ns,
+		func() error {
+			if ns.Sync() != nil {
+				return ErrMigrateSessionFail
+			}
+			if globalStore.Remove(old) != nil {
+				return ErrRemoveSessionFail
+			}
+			http.SetCookie(write, cookie)
+			return nil
+		}()
+}
+
+// createSession return new session
+func createSession(w http.ResponseWriter, cookie *http.Cookie) (*Session, error) {
+
+	// FIX BUG:
+	// https://deepsource.io/gh/auula/gws/run/5b13c99b-9101-4e4f-8197-acfd730c28a0/go/SCC-SA4009
+	session := NewSession()
+
+	debug.trace(session)
+
+	if cookie == nil {
+		cookie = NewCookie()
+	}
+	cookie.Value = session.id
+	cookie.MaxAge = int(globalConfig.LifeTime) / 1e9
+	if err := globalStore.Write(session); err != nil {
 		return nil, err
 	}
-	s.refreshCookie()
-	if ele, ok := s.Data[key]; ok {
-		return ele, nil
+
+	debug.trace(cookie)
+
+	http.SetCookie(w, cookie)
+
+	debug.trace(session)
+	return session, nil
+}
+
+// NewCookie return default config cookie pointer
+func NewCookie() *http.Cookie {
+	return &http.Cookie{
+		Domain:   globalConfig.Domain,
+		Path:     globalConfig.Path,
+		Name:     globalConfig.CookieName,
+		Secure:   globalConfig.Secure,
+		HttpOnly: globalConfig.HttpOnly,
 	}
-	return nil, fmt.Errorf("key '%s' does not exist", key)
 }
 
-// Set Stores information in the session
-func (s *Session) Set(key string, v interface{}) error {
-
-	lock["W"](func() {
-		if s.Data == nil {
-			s.Data = make(map[string]interface{}, 8)
-		}
-		s.Data[key] = v
-	})
-
-	s.refreshCookie()
-	return mgr.store.Update(s)
-}
-
-// Remove an element stored in the session
-func (s *Session) Remove(key string) error {
-	s.refreshCookie()
-
-	lock["W"](func() {
-		delete(s.Data, key)
-	})
-
-	return mgr.store.Update(s)
-}
-
-// Clean up all data for this session
-func (s *Session) Clean() error {
-	s.refreshCookie()
-	return mgr.store.Remove(s)
-}
-
-// Handler Get session data from the Request
-func Handler(w http.ResponseWriter, req *http.Request) *Session {
-
-	// Take the session from the request
-	var session Session
-	session._w = w
-	cookie, err := req.Cookie(mgr.cfg._cookie.Name)
-	if err != nil || cookie == nil || len(cookie.Value) <= 0 {
-		return createSession(w, cookie, &session)
-	}
-
-	// The length of the ID after being encoded is 73 bits
-	if len(cookie.Value) >= 73 {
-		session.ID = cookie.Value
-		if mgr.store.Read(&session) != nil {
-			return createSession(w, cookie, &session)
-		}
-
-		session.copy(mgr.cfg._cookie)
-		session.Cookie.Value = session.ID
-		session.Cookie.Expires = session.Expires
-		session.refreshCookie()
-	}
-
-	return &session
-}
-
-func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) *Session {
-	// init session parameter
-	session.ID = generateUUID()
-	session.Expires = time.Now().Add(mgr.cfg.TimeOut)
-
-	// 重置配置cookie模板
-	session.copy(mgr.cfg._cookie)
-	session.Cookie.Value = session.ID
-	session.Cookie.Expires = session.Expires
-
-	mgr.store.Create(session)
-
-	session.refreshCookie()
-	return session
-}
-
-// refreshCookie: Refresh the cookie session as long as there is an operation to reset the session life cycle
-func (s *Session) refreshCookie() {
-	s.Expires = time.Now().Add(mgr.cfg.TimeOut)
-	s.Cookie.Expires = s.Expires
-	http.SetCookie(s._w, s.Cookie)
-}
-
-// generateUUID: generate session id
-func generateUUID() string {
+// uuid73 generate session uuid length 73
+func uuid73() string {
 	return fmt.Sprintf("%s-%s", uuid.New().String(), uuid.New().String())
 }
 
-func (s *Session) copy(cookie *http.Cookie) error {
-	s.Cookie = new(http.Cookie)
-	c, err := deepcopy.Anything(cookie)
-	if err != nil {
-		return errors.New("cookie make a deep copy from src into dst failed")
+// NewSession return new session
+func NewSession() *Session {
+	nowTime := time.Now()
+	return &Session{
+		session: session{
+			id:         uuid73(),
+			Values:     make(Values),
+			CreateTime: nowTime,
+			ExpireTime: nowTime.Add(lifeTime),
+		},
 	}
-	s.Cookie = c.(*http.Cookie)
-	return nil
 }
 
-// MigrateSession: migrate old session data to new session
-func (s *Session) MigrateSession() (*Session, error) {
-
-	newID := generateUUID()
-	newSession, err := deepcopy.Anything(s)
-	if err != nil {
-		return nil, errors.New("migrate session make a deep copy from src into dst failed")
-	}
-
-	newSession.(*Session).ID = newID
-	newSession.(*Session).Cookie.Value = newID
-	newSession.(*Session).Expires = time.Now().Add(mgr.cfg.TimeOut)
-	newSession.(*Session)._w = s._w
-	newSession.(*Session).refreshCookie()
-
-	// Remove cache
-	mgr.store.Remove(s)
-	mgr.store.Create(newSession.(*Session))
-	return newSession.(*Session), nil
+// Expired check current session whether expire
+func (s *Session) Expired() bool {
+	return time.Duration(s.ExpireTime.UnixNano()) <= time.Duration(time.Now().UnixNano())
 }
 
-// It makes a deep copy by using json.Marshal and json.Unmarshal, so it's not very
-// performant.
-// Make a deep copy from src into dst.
+// Open Initialize storage with custom configuration
+func Open(opt Configure) {
+	debug.trace(opt)
 
-// fix bug:
-// 1.Types of function parameters can be combined
-// https://deepsource.io/gh/higker/sessionx/issue/CRT-A0017/occurrences
-// 2.Incorrectly formatted error string
-// https://deepsource.io/gh/higker/sessionx/issue/SCC-ST1005/occurrences
-func _copy(dst, src interface{}) error {
-	if dst == nil {
-		return fmt.Errorf("dst cannot be nil")
+	globalConfig = opt.Parse()
+
+	switch globalConfig.store {
+	case ram:
+		globalStore = NewRAM()
+	case rds:
+		rdb := NewRds()
+		timeout, cancelFunc := timeoutCtx()
+		defer cancelFunc()
+		if err := rdb.store.Ping(timeout).Err(); err != nil {
+			panic(err.Error())
+		}
+		globalStore = rdb
+	default:
+		globalStore = NewRAM()
 	}
-	if src == nil {
-		return fmt.Errorf("src cannot be nil")
-	}
-	bytes, err := json.Marshal(src)
-	if err != nil {
-		return fmt.Errorf("unable to marshal src: %s", err)
-	}
-	err = json.Unmarshal(bytes, dst)
-	if err != nil {
-		return fmt.Errorf("unable to unmarshal into dst: %s", err)
-	}
-	return nil
+}
+
+// StoreFactory Initialize custom storage media
+func StoreFactory(opt Options, store Storage) {
+	globalConfig = opt.Parse()
+	globalStore = store
 }

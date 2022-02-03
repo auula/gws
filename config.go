@@ -1,6 +1,6 @@
 // MIT License
 
-// Copyright (c) 2021 Jarvib Ding
+// Copyright (c) 2022 Leon Ding
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,125 +20,240 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package sessionx
+package gws
 
 import (
-	"errors"
 	"fmt"
-	"net/http"
+	"net"
 	"regexp"
+	"strings"
 	"time"
 )
 
+type (
+	store uint8
+)
+
+const (
+	ram store = iota // Session storage ram type
+	rds              // Session storage rds type
+	def
+
+	prefix   = "gws_id"                          // Default perfix
+	lifeTime = time.Duration(1800) * time.Second // Default session lifetime
+)
+
 var (
-	// Memory storage type config
-	DefaultCfg = &Configs{
-		TimeOut:  time.Minute * 30,
-		Domain:   "",
-		Path:     "/",
-		Name:     SessionKey,
-		Secure:   false,
-		HttpOnly: true,
+
+	// Default option
+	defaultOption = option{
+		LifeTime:   lifeTime,
+		CookieName: prefix,
+		Domain:     "",
+		Path:       "/",
+		HttpOnly:   true,
+		Secure:     true,
+	}
+
+	// DefaultRAMOptions default RAM config parameter option.
+	DefaultRAMOptions = &RAMOption{
+		option: defaultOption,
+	}
+
+	// NewRDSOptions default RDS config parameter option.
+	NewRDSOptions = func(ip string, port uint16, passwd string, opts ...func(*RDSOption)) *RDSOption {
+		var rdsopt RDSOption
+		rdsopt.option = defaultOption
+
+		rdsopt.Index = 6
+		rdsopt.Prefix = prefix
+		rdsopt.PoolSize = 10
+		rdsopt.Password = passwd
+		rdsopt.Address = fmt.Sprintf("%s:%v", ip, port)
+
+		for _, opt := range opts {
+			opt(&rdsopt)
+		}
+
+		return &rdsopt
+	}
+
+	// WithIndex set redis database number
+	WithIndex = func(number uint8) func(*RDSOption) {
+		return func(r *RDSOption) {
+			r.Index = number
+		}
+	}
+
+	// WithPoolSize set redis connection  pool size
+	WithPoolSize = func(poolsize uint8) func(*RDSOption) {
+		return func(r *RDSOption) {
+			r.PoolSize = poolsize
+		}
+	}
+
+	// WithPrefix set redis key prefix
+	WithPrefix = func(prefix string) func(*RDSOption) {
+		return func(r *RDSOption) {
+			r.Prefix = prefix
+		}
+	}
+
+	// WithOpts set base option
+	WithOpts = func(opt Options) func(*RDSOption) {
+		return func(r *RDSOption) {
+			r.option = opt.option
+		}
 	}
 )
 
-// Configs session option
-type Configs struct {
-
-	// sessionID value encryption key
-	//EncryptedKey string `json:"encrypted_key" validate:"required,len=16"`
-
-	// redis server ip
-	RedisAddr string `json:"redis_addr" validate:"required"`
-	// redis auth password
-	RedisPassword string `json:"redis_password" validate:"required"`
-	// redis key prefix
-	RedisKeyPrefix string `json:"redis_key_prefix" validate:"required"`
-	// redis db
-	RedisDB int `json:"redis_db" validate:"gte=0,lte=15,redis"`
-	// the life cycle of a session without operations
-	TimeOut time.Duration `json:"time_out" validate:"required"`
-	// connection pool size
-	PoolSize uint8 `json:"pool_size" validate:"gte=5,lte=100"`
-
-	// cookie domain
-	Domain string `json:"domain" `
-
-	// cookie domain url path
-	Path string `json:"Path" validate:"required"`
-
-	// the browser can only use the cookie through a secure encrypted connection
-	Secure bool `json:"secure" `
-
-	// not allow javascript operating
-	HttpOnly bool `json:"http_only" validate:"required"`
-
-	// cookie key name
-	Name string `json:"name" validate:"required"`
-
-	// cookie config template
-	_cookie *http.Cookie
+// option type is default config parameter option.
+type option struct {
+	LifeTime   time.Duration `json:"life_time" verify:"true" msg:"session lifetime required"`
+	CookieName string        `json:"cookie_name" verify:"true" msg:"cookie name required"`
+	HttpOnly   bool          `json:"http_only" verify:"true" msg:"http only required"`
+	Path       string        `json:"path" verify:"true" msg:"domain path required"`
+	Secure     bool          `json:"secure" verify:"true" msg:"secure required"`
+	Domain     string        `json:"domain" verify:"true" msg:"domain required"`
 }
 
-// VerifyRedis config parameter
-func (c *Configs) VerifyRedis() error {
-	IPAndPortRegex := "^(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5]):([0-9]|[1-9]\\d|[1-9]\\d{2}|[1-9]\\d{3}|[1-5]\\d{4}|6[0-4]\\d{3}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5])$"
-	if err := c.VerifyMemory(); err != nil {
-		return fmt.Errorf("verify config param fail: %s", err.Error())
-	}
-	// check ip address
-	match, _ := regexp.MatchString(IPAndPortRegex, c.RedisAddr)
-	if !match {
-		return errors.New("redis ip address format error")
-	}
-	// redis redis key prefix
-	if len(c.RedisKeyPrefix) <= 0 {
-		return errors.New("redis key prefix required")
-	}
-	// check redis database number index
-	if c.RedisDB < 0 || c.RedisDB > 15 {
-		return errors.New("redis database number index not exist")
-	}
-	// check redis pool size
-	if c.PoolSize < 1 || c.PoolSize > 100 {
-		return errors.New("redis pool size range is 1 - 100")
-	}
-	return nil
+// Options type is default config parameter option.
+type Options struct {
+	option
 }
 
-// VerifyMemory config parameter
-func (c *Configs) VerifyMemory() error {
-	// check time out
-	if c.TimeOut <= 0 {
-		c.TimeOut = time.Minute * 30
+var (
+	WithLifeTime = func(d time.Duration) func(*Options) {
+		return func(o *Options) {
+			o.LifeTime = d
+		}
 	}
-	// check cookie path
-	if c.Path == "" {
-		return errors.New("cookie path not exist")
+	WithCookieName = func(cn string) func(*Options) {
+		return func(o *Options) {
+			o.CookieName = cn
+		}
 	}
-	// check cookie key name
-	if c.Name == "" {
-		return errors.New("cookie key name not exist")
+	WithPath = func(path string) func(*Options) {
+		return func(o *Options) {
+			o.Path = path
+		}
 	}
-	// no allow javascript operating
-	c.HttpOnly = true
-	return nil
+	WithHttpOnly = func(b bool) func(*Options) {
+		return func(o *Options) {
+			o.HttpOnly = b
+		}
+	}
+	WithSecure = func(b bool) func(*Options) {
+		return func(o *Options) {
+			o.Secure = b
+		}
+	}
+	WithDomain = func(domain string) func(*Options) {
+		return func(o *Options) {
+			o.Domain = domain
+		}
+	}
+)
+
+// NewOptions: Initialize default config.
+func NewOptions(opts ...func(*Options)) Options {
+	var opt Options
+	opt.option = defaultOption
+	for _, v := range opts {
+		v(&opt)
+	}
+	return opt
 }
 
-// Parse config parameter
-func (c *Configs) Parse() *Configs {
-	c._cookie = &http.Cookie{
-		Domain:   c.Domain,
-		Path:     c.Path,
-		Name:     c.Name,
-		Secure:   c.Secure,
-		HttpOnly: c.HttpOnly,
-		Expires:  time.Now().Add(c.TimeOut),
-	}
-	return c
+// RAMOption is RAM storage config parameter option.
+type RAMOption struct {
+	option
 }
 
-// Reload loading config
-func (c *Configs) Reload(cookie *http.Cookie) {
-	c._cookie = cookie
+// RDSOption is Redis storage config parameter option.
+type RDSOption struct {
+	option
+	Index    uint8  `json:"db_index" verify:"true" msg:"redis database number required"`
+	Prefix   string `json:"prefix" verify:"true" msg:"redis prefix required"`
+	Address  string `json:"address" verify:"true" msg:"redis server ip required"`
+	Password string `json:"password" verify:"true" msg:"redis server password required"`
+	PoolSize uint8  `json:"pool_size" verify:"true" msg:"redis connect pool size required"`
+}
+
+// Configure is session storage config parameter parser.
+type Configure interface {
+	Parse() (cfg *Config)
+}
+
+// config is session storage config parameter.
+type Config struct {
+	store `json:"store,omitempty"`
+	RDSOption
+}
+
+func (opt Options) Parse() (cfg *Config) {
+	cfg = new(Config)
+	cfg.store = def
+	cfg.RDSOption.option = opt.option
+	return verifyCfg(cfg)
+}
+
+func (opt RAMOption) Parse() (cfg *Config) {
+	cfg = new(Config)
+	cfg.store = ram
+	cfg.RDSOption.option = opt.option
+	return verifyCfg(cfg)
+}
+
+func (opt RDSOption) Parse() (cfg *Config) {
+	cfg = new(Config)
+	cfg.store = rds
+	cfg.RDSOption = opt
+	return verifyCfg(cfg)
+}
+
+// 此处验证方法比较low，后面改成反射写
+func verifyCfg(cfg *Config) *Config {
+	// 通用校验
+	if cfg.CookieName == "" {
+		panic("cookie name is empty.")
+	}
+	if cfg.Path == "" {
+		panic("domain path is empty.")
+	}
+	if cfg.LifeTime <= 0 {
+		cfg.LifeTime = lifeTime
+	}
+
+	if cfg.store == ram || cfg.store == def {
+		return cfg
+	}
+
+	if cfg.Index > 16 {
+		cfg.Index = 6
+	}
+
+	if cfg.PoolSize <= 0 {
+		cfg.PoolSize = 10
+	}
+
+	if cfg.Prefix == "" {
+		cfg.Prefix = prefix
+	}
+
+	if cfg.Password == "" {
+		panic("remote server login passwd is empty.")
+	}
+
+	// 针对特定存储校验
+	if net.ParseIP(strings.Split(cfg.Address, ":")[0]) == nil {
+		panic("remote ip address illegal.")
+	}
+	if matched, err := regexp.MatchString("^[0-9]*$", strings.Split(cfg.Address, ":")[1]); err == nil {
+		if !matched {
+			panic("remote server port illegal.")
+		}
+	}
+	debug.trace(cfg)
+	return cfg
 }

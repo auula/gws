@@ -1,6 +1,6 @@
 // MIT License
 
-// Copyright (c) 2021 Jarvib Ding
+// Copyright (c) 2022 Leon Ding
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,71 +20,97 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// Author: SDing <deen.job@qq.com>
-// Date: 2021/3/28 - 11:33 PM - UTC/GMT+08:00
+// Go's web session library.
+// gws is a go language implementation of the web session library,
+// which supports local storage of session data as well as redis
+// remote distributed storage, distributed session sharing.
 
-// Sessionx is a web session middleware usage example as follows:
+// author: Leon Ding <ding@ibyte.me>
 
-// go get github.com/higker/sessionx
+// Quick Start
+// 1. install mod
+// go get github.com/auula/gws
+// 2. Use Example Code
 
-// Example Code:
+// package main
 
-/*
-package main
+// import (
+// 	"encoding/json"
+// 	"fmt"
+// 	"log"
+// 	"net/http"
 
-import (
-	"fmt"
-	"log"
-	"net/http"
-	"time"
+// 	"github.com/auula/gws"
+// )
 
-	sessionx "github.com/higker/sessionx"
-)
+// func init() {
 
-var (
-	cfg = &sessionx.Configs{
-		TimeOut:        time.Minute * 30,
-		RedisAddr:      "127.0.0.1:6379",
-		RedisDB:        0,
-		RedisPassword:  "redis.nosql",
-		RedisKeyPrefix: sessionx.SessionKey,
-		PoolSize:       100,
-		Domain:         "localhost:8080",
-		Name:           sessionx.SessionKey,
-		Path:           "/",
-		Secure:         true,
-		HttpOnly:       true,
-	}
-)
+// 	gws.Open(gws.DefaultRAMOptions)
 
-func main() {
-	sessionx.New(sessionx.R, cfg)
-	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
-		session := sessionx.Handler(writer, request)
-		session.Set("K", time.Now().Format("2006 01-02 15:04:05"))
-		fmt.Fprintln(writer, "set time value succeed.")
-	})
+// }
 
-	http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
-		session := sessionx.Handler(writer, request)
-		v, err := session.Get("K")
-		if err != nil {
-			fmt.Fprintln(writer, err.Error())
-			return
-		}
-		fmt.Fprintln(writer, fmt.Sprintf("The stored value is : %s", v))
-	})
+// type UserInfo struct {
+// 	UserName string `json:"user_name,omitempty"`
+// 	Email    string `json:"email,omitempty"`
+// 	Age      uint8  `json:"age,omitempty"`
+// }
 
-	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
-		session := sessionx.Handler(writer, request)
-		err := session.MigrateSession()
-		if err != nil {
-			log.Println(err)
-		}
-		fmt.Fprintln(writer, session)
-	})
-	_ = http.ListenAndServe(":8080", nil)
-}
-*/
+// func main() {
+// 	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
+// 		session, _ := gws.GetSession(writer, request)
 
-package sessionx
+// 		session.Values["user"] = &UserInfo{
+// 			UserName: "Leon Ding",
+// 			Email:    "ding@ibyte.me",
+// 			Age:      21,
+// 		}
+// 		session.Sync()
+
+// 		fmt.Fprintln(writer, "set value successful.")
+// 	})
+
+// 	http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
+// 		session, _ := gws.GetSession(writer, request)
+
+// 		if bytes, ok := session.Values["user"]; ok {
+// 			jsonstr, _ := json.Marshal(bytes)
+// 			fmt.Fprintln(writer, string(jsonstr))
+// 			return
+// 		}
+
+// 		fmt.Fprintln(writer, "no data")
+// 	})
+
+// 	http.HandleFunc("/userinfo", func(writer http.ResponseWriter, request *http.Request) {
+// 		session, err := gws.GetSession(writer, request)
+// 		if err != nil {
+// 			fmt.Fprintln(writer, err.Error())
+// 			return
+// 		}
+// 		jsonstr, _ := json.Marshal(session.Values["user"])
+// 		fmt.Fprintln(writer, string(jsonstr))
+// 	})
+
+// 	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
+// 		var (
+// 			session *gws.Session
+// 			err     error
+// 		)
+
+// 		session, _ = gws.GetSession(writer, request)
+// 		log.Printf("old session %p \n", session)
+
+// 		if session, err = gws.Migrate(writer, session); err != nil {
+// 			fmt.Fprintln(writer, err.Error())
+// 			return
+// 		}
+
+// 		log.Printf("new session %p \n", session)
+// 		jsonstr, _ := json.Marshal(session.Values["user"])
+// 		fmt.Fprintln(writer, string(jsonstr))
+// 	})
+
+// 	_ = http.ListenAndServe(":8080", nil)
+// }
+
+package gws

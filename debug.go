@@ -1,6 +1,6 @@
 // MIT License
 
-// Copyright (c) 2021 Jarvib Ding
+// Copyright (c) 2022 Leon Ding
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,26 +20,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package sessionx
+package gws
 
 import (
-	"bytes"
-	"encoding/gob"
+	"fmt"
+	"log"
+	"os"
 )
 
-func encoder(s *Session) ([]byte, error) {
-	var buffer bytes.Buffer
-	encoder := gob.NewEncoder(&buffer)
-	if err := encoder.Encode(s); err != nil {
-		return nil, err
+// Custom Program Run Information Tracker
+var (
+	debug = &tracer{
+		log: log.New(os.Stdout, "DEBUG TRACE:", log.Ldate|log.Llongfile),
 	}
-	return buffer.Bytes(), nil
+)
+
+// tracer logger
+type tracer struct {
+	log    *log.Logger
+	enable bool
 }
 
-func decoder(v []byte, s *Session) error {
-	reader := bytes.NewReader(v)
-	dec := gob.NewDecoder(reader)
-	// Redundant error checking detected
-	// https://deepsource.io/gh/higker/sessionx/issue/RVV-B0005/occurrences
-	return dec.Decode(s)
+// trace debug application
+func (t *tracer) trace(v ...interface{}) {
+	if t.enable {
+		t.log.Output(2, fmt.Sprintln(v...))
+	}
 }
+
+// Enable program debug function
+func Debug(flag bool) {
+	debug.enable = flag
+}
+
+// // Log return debug tracker
+// func Log() *tracer {
+// 	return debug
+// }
