@@ -73,13 +73,13 @@ func GetSession(w http.ResponseWriter, req *http.Request) (*Session, error) {
 	cookie, err := req.Cookie(globalConfig.CookieName)
 	if cookie == nil || err != nil {
 		debug.trace(cookie)
-		return createSession(w, cookie, &session)
+		return createSession(w, cookie)
 	}
 
 	if len(cookie.Value) >= 73 {
 		session.id = cookie.Value
 		if globalStore.Read(&session) != nil {
-			return createSession(w, cookie, &session)
+			return createSession(w, cookie)
 		}
 	}
 
@@ -138,9 +138,11 @@ func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 		}()
 }
 
-func createSession(w http.ResponseWriter, cookie *http.Cookie, session *Session) (*Session, error) {
+func createSession(w http.ResponseWriter, cookie *http.Cookie) (*Session, error) {
 
-	session = NewSession()
+	// FIX BUG:
+	// https://deepsource.io/gh/auula/gws/run/5b13c99b-9101-4e4f-8197-acfd730c28a0/go/SCC-SA4009
+	session := NewSession()
 
 	debug.trace(session)
 

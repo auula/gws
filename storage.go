@@ -50,7 +50,7 @@ type RamStore struct {
 func NewRAM() *RamStore {
 	s := &RamStore{
 		store: make(map[string]*Session),
-		rw:    &sync.RWMutex{},
+		rw:    new(sync.RWMutex),
 	}
 	go s.gc()
 	return s
@@ -58,7 +58,12 @@ func NewRAM() *RamStore {
 
 func (ram *RamStore) Read(s *Session) (err error) {
 	ram.rw.RLock()
-	defer ram.rw.RUnlock()
+	defer func() {
+		if s.rw == nil {
+			s.rw = new(sync.RWMutex)
+		}
+		ram.rw.RUnlock()
+	}()
 	if session, ok := ram.store[s.id]; ok {
 		s.Values = session.Values
 		s.CreateTime = session.CreateTime
@@ -110,7 +115,7 @@ type RdsStore struct {
 // NewRds return redis server storage.
 func NewRds() *RdsStore {
 	return &RdsStore{
-		rw: &sync.RWMutex{},
+		rw: new(sync.RWMutex),
 		store: redis.NewClient(&redis.Options{
 			Addr:     globalConfig.Address,
 			Password: globalConfig.Password,
