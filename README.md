@@ -93,7 +93,9 @@ func main() {
 以上示例代码，展示如何自定义实现一个存储，具体示例代码请查看：[./example/store_example.go](./example/store_example.go)
 
 ---
-如果只是单机使用，或者是一个小体积`Web Service`应用，你可以使用默认的本地内存存储，会话存储会保存在本地服务器内存里面，这个缺点就是程序重启会话数据本来恢复。
+如果只是单机使用，或者是一个小体积`Web Service`应用，你可以使用默认的本地内存存储，会话存储会保存在本地服务器内存里面，这个缺点就是程序重启会话数据不能恢复。
+
+如果想支持持久化你可以自定义，也可以使用`gws`默认提供的`Redis`方案去解决会话分布式存储，`Redis`在单点故障时，只要会话没有过期，应用节点恢复正常之后，数据依旧会同步到。
 
 ```go
 func init() {
@@ -221,6 +223,36 @@ http.HandleFunc("/result", func(writer http.ResponseWriter, request *http.Reques
 	fmt.Fprintln(writer, session.Values["count"].(int))
 })
 ```
+
+
+## 会话劫持
+
+会话固定攻击，这个过程，正常用户在通过浏览器访问我们编写的网站，但是这个时候有个`hack`通过`arp`欺骗，把路由器的流量劫持到他的电脑上，然后黑客通过一些特殊的软件抓包你的网络请求流量信息，在这个过程中如果你`sessionid`如果存放在`cookie`中，很有可能被黑客提取处理，如果你这个时候登录了网站，这是黑客就拿到你的登录凭证，然后在登录进行重放也就是使用你的`sessionid`，从而达到访问你账户相关的数据目的。
+
+为此我在`gws`里面添加一个`gws.Migrate(write http.ResponseWriter, old *Session) (*Session, error)`内置函数，使用示例：
+
+```go
+http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
+	var (
+		session *gws.Session
+		err     error
+	)
+
+	session, _ = gws.GetSession(writer, request)
+	log.Printf("old session %p \n", session)
+
+	// 迁移会话数据，并且刷新客户端会话，丢弃掉老的session
+	if session, err = gws.Migrate(writer, session); err != nil {
+		fmt.Fprintln(writer, err.Error())
+		return
+	}
+
+	log.Printf("old session %p \n", session)
+	jsonstr, _ := json.Marshal(session.Values["user"])
+	fmt.Fprintln(writer, string(jsonstr))
+})
+```
+`gws.Migrate`会帮助你迁移会话数据，你也可以配合`https`协议使用，当然该有的`API`我在设计`gws`的时候就已经考虑到了，所有都提供了。
 
 **以上示例代码目录：**
 
