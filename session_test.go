@@ -37,7 +37,7 @@ func TestNewSession(t *testing.T) {
 	session := &Session{
 		session{
 			id:         uuid,
-			rw:         sync.RWMutex{},
+			rw:         &sync.RWMutex{},
 			Values:     make(Values),
 			CreateTime: nowTime,
 			ExpireTime: nowTime.Add(lifeTime),
@@ -75,7 +75,7 @@ func TestSession_Expired(t *testing.T) {
 		{"successful", fields{
 			session: session{
 				id:         uuid,
-				rw:         sync.RWMutex{},
+				rw:         &sync.RWMutex{},
 				Values:     make(Values),
 				CreateTime: nowTime,
 				ExpireTime: nowTime.Add(lifeTime),
@@ -87,6 +87,8 @@ func TestSession_Expired(t *testing.T) {
 			s := &Session{
 				session: tt.fields.session,
 			}
+			// fix lock concurrent race
+			// https://deepsource.io/gh/auula/gws/run/5b13c99b-9101-4e4f-8197-acfd730c28a0/go/VET-V0008
 			if got := s.Expired(); got != tt.want {
 				t.Errorf("Expired() = %v, want %v", got, tt.want)
 			}
@@ -151,7 +153,7 @@ func TestRAMStore(t *testing.T) {
 	if globalStore.Write(&Session{
 		session{
 			id:         uuid,
-			rw:         sync.RWMutex{},
+			rw:         &sync.RWMutex{},
 			Values:     make(Values),
 			CreateTime: nowTime,
 			ExpireTime: nowTime.Add(lifeTime),

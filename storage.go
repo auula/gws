@@ -42,7 +42,7 @@ type Storage interface {
 
 // RamStore Local memory storage.
 type RamStore struct {
-	rw    sync.RWMutex
+	rw    *sync.RWMutex
 	store map[string]*Session
 }
 
@@ -50,7 +50,7 @@ type RamStore struct {
 func NewRAM() *RamStore {
 	s := &RamStore{
 		store: make(map[string]*Session),
-		rw:    sync.RWMutex{},
+		rw:    &sync.RWMutex{},
 	}
 	go s.gc()
 	return s
@@ -88,8 +88,8 @@ func (ram *RamStore) Remove(s *Session) (err error) {
 // gc is ram garbage collection.
 func (ram *RamStore) gc() {
 	for {
-		// lifetime / 2 minute garbage collection.
-		time.Sleep(lifeTime / 2)
+		// lifetime minute garbage collection.
+		time.Sleep(lifeTime)
 		debug.trace("gc running...")
 		for _, session := range ram.store {
 			if session.Expired() {
@@ -103,14 +103,14 @@ func (ram *RamStore) gc() {
 
 // RdsStore remote redis server storage.
 type RdsStore struct {
-	rw    sync.RWMutex
+	rw    *sync.RWMutex
 	store *redis.Client
 }
 
 // NewRds return redis server storage.
 func NewRds() *RdsStore {
 	return &RdsStore{
-		rw: sync.RWMutex{},
+		rw: &sync.RWMutex{},
 		store: redis.NewClient(&redis.Options{
 			Addr:     globalConfig.Address,
 			Password: globalConfig.Password,
@@ -125,6 +125,12 @@ func (rds *RdsStore) Read(s *Session) (err error) {
 	rds.rw.RLock()
 	defer func() {
 		cancelFunc()
+		// 防止读取的锁是空的，并且锁值不能共享
+		// fix bug:
+		// https://deepsource.io/gh/auula/gws/run/5b13c99b-9101-4e4f-8197-acfd730c28a0/go/VET-V0008
+		if s.rw == nil {
+			s.rw = new(sync.RWMutex)
+		}
 		rds.rw.RUnlock()
 	}()
 	var val []byte
@@ -170,5 +176,5 @@ func timeoutCtx() (context.Context, context.CancelFunc) {
 }
 
 func expire(t time.Time) time.Duration {
-	return t.Sub(time.Now())
+	return time.Until(t)
 }

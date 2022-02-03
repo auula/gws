@@ -60,7 +60,7 @@ type Session struct {
 
 type session struct {
 	id         string
-	rw         sync.RWMutex
+	rw         *sync.RWMutex
 	CreateTime time.Time
 	ExpireTime time.Time
 	Values
@@ -183,7 +183,7 @@ func NewSession() *Session {
 	return &Session{
 		session: session{
 			id:         uuid73(),
-			rw:         sync.RWMutex{},
+			rw:         new(sync.RWMutex),
 			Values:     make(Values),
 			CreateTime: nowTime,
 			ExpireTime: nowTime.Add(lifeTime),
