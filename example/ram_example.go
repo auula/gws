@@ -27,9 +27,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/auula/gws"
 )
@@ -84,47 +84,40 @@ func main() {
 
 	http.HandleFunc("/race", func(writer http.ResponseWriter, request *http.Request) {
 		session, _ := gws.GetSession(writer, request)
-		var wg sync.WaitGroup
 		session.Values["count"] = 0
-		wg.Add(1000)
-		for i := 0; i < 500; i++ {
+		var (
+			wg  sync.WaitGroup
+			mux sync.Mutex
+		)
+		size := 10000
+		wg.Add(size)
+		for i := 0; i < size/2; i++ {
 			go func() {
-				var v int
+				time.Sleep(5 * time.Second)
+				mux.Lock()
 				if v, ok := session.Values["count"].(int); ok {
-					v += 1
+					session.Values["count"] = v + 1
 				}
-				session.Values["count"] = v
 				wg.Done()
+				mux.Unlock()
 			}()
 			go func() {
-				var v int
+				time.Sleep(5 * time.Second)
+				mux.Lock()
 				if v, ok := session.Values["count"].(int); ok {
-					v += 1
+					session.Values["count"] = v + 1
 				}
-				session.Values["count"] = v
 				wg.Done()
+				mux.Unlock()
 			}()
 		}
+		wg.Wait()
 		fmt.Fprintln(writer, session.Values["count"].(int))
 	})
 
-	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
-		var (
-			session *gws.Session
-			err     error
-		)
-
-		session, _ = gws.GetSession(writer, request)
-		log.Printf("old session %p \n", session)
-
-		if session, err = gws.Migrate(writer, session); err != nil {
-			fmt.Fprintln(writer, err.Error())
-			return
-		}
-
-		log.Printf("new session %p \n", session)
-		jsonstr, _ := json.Marshal(session.Values["user"])
-		fmt.Fprintln(writer, string(jsonstr))
+	http.HandleFunc("/result", func(writer http.ResponseWriter, request *http.Request) {
+		session, _ := gws.GetSession(writer, request)
+		fmt.Fprintln(writer, session.Values["count"].(int))
 	})
 
 	_ = http.ListenAndServe(":8080", nil)
