@@ -1,95 +1,236 @@
-# sessionx
-Session library for Golang.
+# GWS
+**Go's web session library.**
 
-[![Go](https://github.com/higker/sessionx/actions/workflows/go-test.yml/badge.svg?event=push)](https://github.com/higker/sessionx/actions/workflows/go-test.yml)
-[![codecov](https://codecov.io/gh/higker/sessionx/branch/master/graph/badge.svg?token=btbed5BUUZ)](https://codecov.io/gh/higker/sessionx)
-[![DeepSource](https://deepsource.io/gh/higker/sessionx.svg/?label=active+issues&show_trend=true)](https://deepsource.io/gh/higker/sessionx/?ref=repository-badge)
-[![DeepSource](https://deepsource.io/gh/higker/sessionx.svg/?label=resolved+issues&show_trend=true)](https://deepsource.io/gh/higker/sessionx/?ref=repository-badge)
-[![License](https://img.shields.io/badge/license-MIT-db5149.svg)](https://github.com/higker/sessionx/blob/master/LICENSE)
-[![Go Reference](https://pkg.go.dev/badge/github.com/higker/sessionx.svg)](https://pkg.go.dev/github.com/higker/sessionx)
+---
+[![Go](https://github.com/auula/gws/actions/workflows/go-test.yml/badge.svg?event=push)](https://github.com/auula/gws/actions/workflows/go-test.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/auula/gws)](https://goreportcard.com/report/github.com/auula/gws)
+[![Release](https://img.shields.io/github/v/release/auula/gws.svg?style=flat-square)](https://github.com/auula/gws)
+[![License](https://img.shields.io/badge/license-MIT-db5149.svg)](https://github.com/auula/gws/blob/master/LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/auula/gws.svg)](https://pkg.go.dev/github.com/auula/gws)
+[![codecov](https://codecov.io/gh/auula/gws/branch/dev/graph/badge.svg?token=btbed5BUUZ)](https://codecov.io/gh/auula/gws)
+[![DeepSource](https://deepsource.io/gh/auula/gws.svg/?label=active+issues&show_trend=true)](https://deepsource.io/gh/auula/gws/?ref=repository-badge)
+[![DeepSource](https://deepsource.io/gh/auula/gws.svg/?label=resolved+issues&show_trend=true)](https://deepsource.io/gh/auula/gws/?ref=repository-badge)
 
+---
+### 介 绍
 
-# 介 绍
-`sessionx`是适用于`go`的`web`编程的`session`中间件的库，你可以轻松得使用这个包来管理你的`session`。
+`GWS`是一个`Go`语言实现的`WEB`会话库，支持本地会话存储，也支持`Redis`远程服务器分布式存储，并且为了可扩展存储实现，预留工厂，方便开发者自定义实现存储来保存会话数据。
 
+### 安 装
+开发者你只需要安装本库到你到项目里面，在你的项目里面执行下面命令即可安装：
+```shell
+go get -u github.com/auula/gws
+```
+### 使用示例
 
-1. 支持内存存储
-2. 支持`redis`存储
-
-## 获取安装库
+首先要声明一点，`gws`是支持多种存储介质保存`session`数据的，你可以自定义实现[`gws.Storage`](./storage.go)存储接口，来使用你自定义存储，接口代码如下:
 
 ```go
-go get -u github.com/higker/sessionx
+// Storage global session data store interface.
+// You can customize the storage medium by implementing this interface.
+type Storage interface {
+	// Read data from store
+	Read(s *Session) (err error)
+	// Write data to storage
+	Write(s *Session) (err error)
+	// Remove data from storage
+	Remove(s *Session) (err error)
+}
 ```
-
-## 使用例子
+你只需要实现[`gws.Storage`](./storage.go)接口，就可以自定义存储会话数据，然后通过`gws.StoreFactory(opt Options, store Storage)`工厂注册自定义存储实现接口配置，例如下面我在演示代码里面一个例子:
 
 ```go
 package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
-	"time"
-
-	sessionx "github.com/higker/sessionx"
+	// 导入gws模块
+	"github.com/auula/gws"
 )
 
-var (
-	cfg = &sessionx.Configs{
-		TimeOut:        time.Minute * 30,
-		RedisAddr:      "127.0.0.1:6379",
-		RedisDB:        0,
-		RedisPassword:  "redis.nosql",
-		RedisKeyPrefix: sessionx.SessionKey,
-		PoolSize:       100,
-		Domain:         "localhost", // set domain by you
-		Name:           sessionx.SessionKey,
-		Path:           "/",
-		Secure:         true,
-		HttpOnly:       true,
-	}
-	// 如果使用内存存储就直接使用 sessionx.DefaultCfg
-	// sessionx.New(sessionx.M, sessionx.DefaultCfg)
-)
-
-func main() {
-	sessionx.New(sessionx.M, cfg)
-	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
-		session := sessionx.Handler(writer, request)
-		// 存储K的值
-		session.Set("K", time.Now().Format("2006 01-02 15:04:05"))
-		fmt.Fprintln(writer, "set time value succeed.")
-	})
-
-	http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
-		session := sessionx.Handler(writer, request)
-		// 获取存储K的值
-		v, err := session.Get("K")
-		if err != nil {
-			fmt.Fprintln(writer, err.Error())
-			return
-		}
-		fmt.Fprintln(writer, fmt.Sprintf("The stored value is : %s", v))
-	})
-
-	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
-		session := sessionx.Handler(writer, request)
-
-		// MigrateSession 函数会迁移session会话数据，返回新的session
-		session, err := session.MigrateSession()
-		if err != nil {
-			log.Println(err)
-		}
-
-		session.Set("person", "Jarvib Ding")
-		fmt.Fprintln(writer, session)
-	})
-	_ = http.ListenAndServe(":8080", nil)
+func init() {
+	// 是否开启debug调试模式，如果开启则开发者可以在控制台看到会话链路日志
+	// 好的开发者应该看日志去分析程序运行状态，而不是集成开发环境里面的debug功能
+	gws.Debug(false)
+	// 通过默认配置，并且注册自定义存储实现
+	gws.StoreFactory(gws.NewOptions(), &FileStore{})
 }
 
-```
-## 其他帮助
+// 自定义的文件存储实现
+type FileStore struct{}
 
-[点击查看: 本库设计和实现文章！](https://mp.weixin.qq.com/s/z_mLGZKXt0hO1l8UWjukUg)
+func (fs FileStore) Read(s *gws.Session) (err error) {
+	panic("implement me")
+}
+
+func (fs FileStore) Write(s *gws.Session) (err error) {
+	panic("implement me")
+}
+
+func (fs FileStore) Remove(s *gws.Session) (err error) {
+	panic("implement me")
+}
+
+func main() {
+	// 测试自定义存储
+	http.HandleFunc("/panic", func(writer http.ResponseWriter, request *http.Request) {
+		// gws.GetSession 会返回本次请求的session
+		session, _ := gws.GetSession(writer, request)
+		// 通过session.Values 保存需要存储会话的数据
+		session.Values["foo"] = "bar"
+		// 通过Sync方法同步数据持久化，当然这里如果是默认内存存储可以不调用
+		// 如果是远程服务器或者自定义存储一定要执行此方法同步数据到其他分布式端
+		session.Sync()
+
+		fmt.Fprintln(writer, "set value successful.")
+	})
+
+	_ = http.ListenAndServe(":8080", nil)
+
+}
+```
+以上示例代码，展示如何自定义实现一个存储，具体示例代码请查看：[./example/store_example.go](./example/store_example.go)
+
+---
+如果只是单机使用，或者是一个小体积`Web Service`应用，你可以使用默认的本地内存存储，会话存储会保存在本地服务器内存里面，这个缺点就是程序重启会话数据本来恢复。
+
+```go
+func init() {
+	// 自定义配置选项参数，具体哪些参数可以查看go.dev上面的文档，或者看源代码吧
+	// var opt gws.RAMOption
+	// opt.Domain = "www.ibyte.me"
+	// gws.Open(opt)
+
+	// 你可以使用默认配置初始化，通过option function模式初始化
+	
+	// gws.Open(gws.NewOptions())
+	// gws.Open(gws.NewOptions(gws.Domain(""), gws.CookieName("")))
+
+	// 推荐直接默认配置
+	gws.Open(gws.DefaultRAMOptions)
+
+	// 这个是初始化Redis分布式存储的
+	// gws.Open(gws.NewRDSOptions("127.0.0.1", 6379, "redis.nosql"))
+}
+```
+
+下面的示例代码，我会演示如何通过`gws`管理你的会话数据：
+
+```go
+// 为了演示数据变化，我定义的一个UserInfo结构体
+type UserInfo struct {
+	UserName string `json:"user_name,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Age      uint8  `json:"age,omitempty"`
+}
+```
+我配置了一个`set`路由，如何在会话里面存储一个`user`的值，存储值直接使用`Values`字段赋值，其实就是一个`map[string]interface{}`变体结构，注意这里的`Values`不是并发安全的，其实我在开发`gws`就考虑到了这个问题，并且想设计并发安全的`api`，但是考虑到`api`太多了也不好，写`Go`要保持大道至简，并不是像`Java`那样要通过`get`和`set`各种抽象，那样只会让你的代码库变得庞大，杂乱无章。
+
+所以在文档我明确说明了如果是并发操作`Values`并且自定义加锁！！！示例代码也会在后面添加：
+```go
+http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
+
+	session, _ := gws.GetSession(writer, request)
+	session.Values["user"] = &UserInfo{
+		UserName: "Leon Ding",
+		Email:    "ding@ibyte.me",
+		Age:      21,
+	}
+
+	// ram模式可以不用执行，因为是内存指针引用
+	session.Sync()
+
+	fmt.Fprintln(writer, "set value successful.")
+})
+```
+如果要从会话里面读取数据，可以看示例代码：
+
+```go
+http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
+	session, _ := gws.GetSession(writer, request)
+
+	// 读取数据和检测map一样的操作，你如果能确保这个一定有值，你可以省去这个if操作
+	// 直接取值也行
+	if bytes, ok := session.Values["user"]; ok {
+		jsonstr, _ := json.Marshal(bytes)
+		fmt.Fprintln(writer, string(jsonstr))
+		return
+	}
+
+	fmt.Fprintln(writer, "no data")
+})
+```
+删除操作及其简单，如果你是老司机开发者，我相信你已经不需要看示例代码了，如下：
+
+```go
+http.HandleFunc("/del", func(writer http.ResponseWriter, request *http.Request) {
+	session, _ := gws.GetSession(writer, request)
+	delete(session.Values, "user")
+	// 一定同步，如果是自定义存储或者是Redis分布式存储的话
+	session.Sync()
+	fmt.Fprintln(writer, "successful")
+})
+```
+上面都是基本的增删改查操作，如果你作为一名`API`调用工程师或者是`API`操作员，那你看到这估计就差不多了，可以完成你日常的开发需求了，你也不需要去了解内部实现，如果要了解内部实现，我后面有空会去讲内部实现。
+
+
+## 并且安全
+由于我在设计`API`的时候，没有打算去写一个`get、set、del`，然后在里面提供一个内部锁去保证并且安全，所有调用者必须在有数据竞争的情况下自行加锁，或者你`go`写的溜，你可以自定义去包装并且安全的，下面这段代码我演示了如何并发安全的操作：
+```go
+http.HandleFunc("/race", func(writer http.ResponseWriter, request *http.Request) {
+	session, _ := gws.GetSession(writer, request)
+
+	session.Values["count"] = 0
+	var (
+		wg  sync.WaitGroup
+		// 如果你是并发操作请加锁
+		mux sync.Mutex
+	)
+	size := 10000
+	wg.Add(size)
+	for i := 0; i < size/2; i++ {
+		go func() {
+			time.Sleep(5 * time.Second)
+			mux.Lock()
+			if v, ok := session.Values["count"].(int); ok {
+				session.Values["count"] = v + 1
+			}
+			wg.Done()
+			mux.Unlock()
+		}()
+		go func() {
+			time.Sleep(5 * time.Second)
+			mux.Lock()
+			if v, ok := session.Values["count"].(int); ok {
+				session.Values["count"] = v + 1
+			}
+			wg.Done()
+			mux.Unlock()
+		}()
+	}
+	wg.Wait()
+	fmt.Fprintln(writer, session.Values["count"].(int))
+})
+```
+在数据竞争状态下，其他的调用者，可以正常取值，但是你要保证你自定义的锁的控制范围，你要用什么类型的锁，例如读写锁还是互斥锁，这个要看你对`go`的了解程度了，或者你很强，你可以通过`channel`解决数据竞争，我在设计`API`的时候，我是保持着尽可能少量的去影响或者限制调用者一些操作体验的，上面和下面的示例是在`race`在请求的情况下，`result`不会阻塞并且还能取值的演示：
+
+```go
+http.HandleFunc("/result", func(writer http.ResponseWriter, request *http.Request) {
+	session, _ := gws.GetSession(writer, request)
+	fmt.Fprintln(writer, session.Values["count"].(int))
+})
+```
+
+**以上示例代码目录：**
+
+- [./example/store_example.go](./example/store_example.go)
+- [./example/ram_example.go](./example/ram_example.go)
+- [./example/redis_example.go](./example/redis_example.go)
+
+PS: 如果你是微信公众号看到这篇文章，那估计你不能正常跳转，因为腾讯的平台就这个样子，如果对你有帮助你可以按一个`star`再走。
+- [https://github.com/auula/gws](https://github.com/auula/gws)
+
+如果你发现了什么`bug`欢迎`pr`或者`issues`，我对代码质量要求比较高，`gws`代码是通过机器进行`code review`的，目前代码测试覆盖率和文档正在完善中。
+
+![](https://tva1.sinaimg.cn/large/008i3skNgy1gz0qljglhpj31bz0u0wh2.jpg)

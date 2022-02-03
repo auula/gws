@@ -30,6 +30,7 @@ import (
 	"time"
 )
 
+// TestNewSession  testing session create
 func TestNewSession(t *testing.T) {
 	nowTime := time.Now()
 	uuid := uuid73()
@@ -59,7 +60,8 @@ func TestNewSession(t *testing.T) {
 	}
 }
 
-func TestSession_Expired(t *testing.T) {
+// TestSessionExpired testing session data expire checking
+func TestSessionExpired(t *testing.T) {
 	nowTime := time.Now()
 	uuid := uuid73()
 
@@ -94,6 +96,7 @@ func TestSession_Expired(t *testing.T) {
 	}
 }
 
+// TestNewCookie testing cookie
 func TestNewCookie(t *testing.T) {
 
 	Open(DefaultRAMOptions)
@@ -113,6 +116,7 @@ func TestNewCookie(t *testing.T) {
 	}
 }
 
+// TestStoreFactory testing global config & global storage
 func TestStoreFactory(t *testing.T) {
 
 	store := NewRAM()
@@ -140,6 +144,7 @@ func TestStoreFactory(t *testing.T) {
 	}
 }
 
+// TestRAMStore testing memory storage read write remove
 func TestRAMStore(t *testing.T) {
 
 	t.Log("init ram store")
@@ -184,6 +189,7 @@ func TestRAMStore(t *testing.T) {
 	}
 }
 
+// TestSessionConcurrent testing session data concurrent safe
 func TestSessionConcurrent(t *testing.T) {
 	session := NewSession()
 	session.Values["count"] = 0

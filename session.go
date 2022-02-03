@@ -37,7 +37,7 @@ var (
 	globalStore Storage
 
 	// Global Configure controller
-	globalConfig *config
+	globalConfig *Config
 
 	// Session concurrent safe mutex
 	migrateMux sync.Mutex
@@ -58,6 +58,7 @@ type Session struct {
 	session
 }
 
+// session struct
 type session struct {
 	id         string
 	CreateTime time.Time
@@ -123,6 +124,7 @@ func Migrate(write http.ResponseWriter, old *Session) (*Session, error) {
 		}()
 }
 
+// createSession return new session
 func createSession(w http.ResponseWriter, cookie *http.Cookie) (*Session, error) {
 
 	// FIX BUG:

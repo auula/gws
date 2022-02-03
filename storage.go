@@ -35,8 +35,11 @@ import (
 // Storage global session data store interface.
 // You can customize the storage medium by implementing this interface.
 type Storage interface {
+	// Read data from store
 	Read(s *Session) (err error)
+	// Write data to storage
 	Write(s *Session) (err error)
+	// Remove data from storage
 	Remove(s *Session) (err error)
 }
 
@@ -163,14 +166,17 @@ func (rds *RdsStore) Remove(s *Session) (err error) {
 	return rds.store.Del(timeout, formatPrefix(s.id)).Err()
 }
 
+// formatPrefix format redis key prefix
 func formatPrefix(sid string) string {
 	return fmt.Sprintf("%s:%s", globalConfig.Prefix, sid)
 }
 
+// timeoutCtx redis connect timeout
 func timeoutCtx() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), time.Duration(3)*time.Second)
 }
 
+// expire redis key expire
 func expire(t time.Time) time.Duration {
 	return time.Until(t)
 }

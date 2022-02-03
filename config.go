@@ -182,39 +182,38 @@ type RDSOption struct {
 
 // Configure is session storage config parameter parser.
 type Configure interface {
-	Parse() (cfg *config)
+	Parse() (cfg *Config)
 }
 
 // config is session storage config parameter.
-type config struct {
+type Config struct {
 	store `json:"store,omitempty"`
 	RDSOption
 }
 
-func (opt Options) Parse() (cfg *config) {
-	cfg = new(config)
+func (opt Options) Parse() (cfg *Config) {
+	cfg = new(Config)
 	cfg.store = def
 	cfg.RDSOption.option = opt.option
 	return verifyCfg(cfg)
 }
 
-func (opt RAMOption) Parse() (cfg *config) {
-	cfg = new(config)
+func (opt RAMOption) Parse() (cfg *Config) {
+	cfg = new(Config)
 	cfg.store = ram
 	cfg.RDSOption.option = opt.option
 	return verifyCfg(cfg)
 }
 
-func (opt RDSOption) Parse() (cfg *config) {
-	cfg = new(config)
+func (opt RDSOption) Parse() (cfg *Config) {
+	cfg = new(Config)
 	cfg.store = rds
 	cfg.RDSOption = opt
 	return verifyCfg(cfg)
 }
 
 // 此处验证方法比较low，后面改成反射写
-func verifyCfg(cfg *config) *config {
-
+func verifyCfg(cfg *Config) *Config {
 	// 通用校验
 	if cfg.CookieName == "" {
 		panic("cookie name is empty.")

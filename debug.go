@@ -52,3 +52,8 @@ func (t *tracer) trace(v ...interface{}) {
 func Debug(flag bool) {
 	debug.enable = flag
 }
+
+// // Log return debug tracker
+// func Log() *tracer {
+// 	return debug
+// }

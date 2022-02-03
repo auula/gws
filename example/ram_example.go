@@ -82,8 +82,16 @@ func main() {
 		fmt.Fprintln(writer, "no data")
 	})
 
+	http.HandleFunc("/del", func(writer http.ResponseWriter, request *http.Request) {
+		session, _ := gws.GetSession(writer, request)
+		delete(session.Values, "user")
+		session.Sync()
+		fmt.Fprintln(writer, "successful")
+	})
+
 	http.HandleFunc("/race", func(writer http.ResponseWriter, request *http.Request) {
 		session, _ := gws.GetSession(writer, request)
+
 		session.Values["count"] = 0
 		var (
 			wg  sync.WaitGroup
