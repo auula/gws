@@ -37,7 +37,6 @@ func TestNewSession(t *testing.T) {
 	session := &Session{
 		session{
 			id:         uuid,
-			rw:         &sync.RWMutex{},
 			Values:     make(Values),
 			CreateTime: nowTime,
 			ExpireTime: nowTime.Add(lifeTime),
@@ -75,7 +74,6 @@ func TestSession_Expired(t *testing.T) {
 		{"successful", fields{
 			session: session{
 				id:         uuid,
-				rw:         &sync.RWMutex{},
 				Values:     make(Values),
 				CreateTime: nowTime,
 				ExpireTime: nowTime.Add(lifeTime),
@@ -153,7 +151,6 @@ func TestRAMStore(t *testing.T) {
 	if globalStore.Write(&Session{
 		session{
 			id:         uuid,
-			rw:         &sync.RWMutex{},
 			Values:     make(Values),
 			CreateTime: nowTime,
 			ExpireTime: nowTime.Add(lifeTime),
@@ -173,17 +170,6 @@ func TestRAMStore(t *testing.T) {
 
 	t.Log("set and get session data")
 
-	session.Set("foo", "bar")
-	session.Sync()
-	if session.Values["foo"] != "bar" {
-		t.Error("data synchronization failed")
-	}
-	session.Del("foo")
-	//session.Sync()
-	if _, ok := session.Values["foo"]; ok {
-		t.Error("data synchronization failed")
-	}
-
 	if session.ID() != uuid {
 		t.Error("data synchronization failed")
 	}
@@ -196,4 +182,36 @@ func TestRAMStore(t *testing.T) {
 	if err := globalStore.Read(&session); err != ErrSessionNoData {
 		t.Error(err)
 	}
+}
+
+func TestSessionConcurrent(t *testing.T) {
+	session := NewSession()
+	session.Values["count"] = 0
+	var (
+		wg  sync.WaitGroup
+		mux sync.Mutex
+	)
+	size := 10000
+	wg.Add(size)
+
+	for i := 0; i < size/2; i++ {
+		go func() {
+			mux.Lock()
+			if v, ok := session.Values["count"].(int); ok {
+				session.Values["count"] = v + 1
+			}
+			wg.Done()
+			mux.Unlock()
+		}()
+		go func() {
+			mux.Lock()
+			if v, ok := session.Values["count"].(int); ok {
+				session.Values["count"] = v + 1
+			}
+			wg.Done()
+			mux.Unlock()
+		}()
+	}
+	wg.Wait()
+	t.Log(session.Values["count"].(int))
 }

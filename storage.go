@@ -59,9 +59,6 @@ func NewRAM() *RamStore {
 func (ram *RamStore) Read(s *Session) (err error) {
 	ram.rw.RLock()
 	defer func() {
-		if s.rw == nil {
-			s.rw = new(sync.RWMutex)
-		}
 		ram.rw.RUnlock()
 	}()
 	if session, ok := ram.store[s.id]; ok {
@@ -130,12 +127,6 @@ func (rds *RdsStore) Read(s *Session) (err error) {
 	rds.rw.RLock()
 	defer func() {
 		cancelFunc()
-		// 防止读取的锁是空的，并且锁值不能共享
-		// fix bug:
-		// https://deepsource.io/gh/auula/gws/run/5b13c99b-9101-4e4f-8197-acfd730c28a0/go/VET-V0008
-		if s.rw == nil {
-			s.rw = new(sync.RWMutex)
-		}
 		rds.rw.RUnlock()
 	}()
 	var val []byte

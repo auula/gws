@@ -48,12 +48,11 @@ func main() {
 	http.HandleFunc("/set", func(writer http.ResponseWriter, request *http.Request) {
 		session, _ := gws.GetSession(writer, request)
 
-		session.Set("user", &UserInfo{
+		session.Values["user"] = &UserInfo{
 			UserName: "Leon Ding",
 			Email:    "ding@ibyte.me",
 			Age:      21,
-		})
-
+		}
 		session.Sync()
 
 		fmt.Fprintln(writer, "set value successful.")
@@ -61,7 +60,6 @@ func main() {
 
 	http.HandleFunc("/get", func(writer http.ResponseWriter, request *http.Request) {
 		session, _ := gws.GetSession(writer, request)
-
 		jsonstr, _ := json.Marshal(session.Values["user"])
 		fmt.Fprintln(writer, string(jsonstr))
 	})

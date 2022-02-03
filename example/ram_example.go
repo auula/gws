@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/auula/gws"
 )
@@ -81,14 +82,30 @@ func main() {
 		fmt.Fprintln(writer, "no data")
 	})
 
-	http.HandleFunc("/userinfo", func(writer http.ResponseWriter, request *http.Request) {
-		session, err := gws.GetSession(writer, request)
-		if err != nil {
-			fmt.Fprintln(writer, err.Error())
-			return
+	http.HandleFunc("/race", func(writer http.ResponseWriter, request *http.Request) {
+		session, _ := gws.GetSession(writer, request)
+		var wg sync.WaitGroup
+		session.Values["count"] = 0
+		wg.Add(1000)
+		for i := 0; i < 500; i++ {
+			go func() {
+				var v int
+				if v, ok := session.Values["count"].(int); ok {
+					v += 1
+				}
+				session.Values["count"] = v
+				wg.Done()
+			}()
+			go func() {
+				var v int
+				if v, ok := session.Values["count"].(int); ok {
+					v += 1
+				}
+				session.Values["count"] = v
+				wg.Done()
+			}()
 		}
-		jsonstr, _ := json.Marshal(session.Values["user"])
-		fmt.Fprintln(writer, string(jsonstr))
+		fmt.Fprintln(writer, session.Values["count"].(int))
 	})
 
 	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {

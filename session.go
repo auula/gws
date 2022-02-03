@@ -60,7 +60,6 @@ type Session struct {
 
 type session struct {
 	id         string
-	rw         *sync.RWMutex
 	CreateTime time.Time
 	ExpireTime time.Time
 	Values
@@ -96,20 +95,6 @@ func (s *Session) ID() string {
 func (s *Session) Sync() error {
 	debug.trace(s)
 	return globalStore.Write(s)
-}
-
-// Set concurrent safe set value
-func (s *Session) Set(key string, v interface{}) {
-	s.rw.Lock()
-	defer s.rw.Unlock()
-	s.Values[key] = v
-}
-
-// Del concurrent safe delete key
-func (s *Session) Del(key string) {
-	s.rw.Lock()
-	defer s.rw.Unlock()
-	delete(s.Values, key)
 }
 
 // Migrate migrate old session data to new session
@@ -185,7 +170,6 @@ func NewSession() *Session {
 	return &Session{
 		session: session{
 			id:         uuid73(),
-			rw:         new(sync.RWMutex),
 			Values:     make(Values),
 			CreateTime: nowTime,
 			ExpireTime: nowTime.Add(lifeTime),
