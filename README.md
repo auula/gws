@@ -127,7 +127,7 @@ type UserInfo struct {
 	Age      uint8  `json:"age,omitempty"`
 }
 ```
-我配置了一个`set`路由，如何在会话里面存储一个`user`的值，存储值直接使用`Values`字段赋值，其实就是一个`map[string]interface{}`变体结构，注意这里的`Values`不是并发安全的，其实我在开发`gws`就考虑到了这个问题，并且想设计并发安全的`api`，但是考虑到`api`太多了也不好，写`Go`要保持大道至简，并不是像`Java`那样要通过`get`和`set`各种抽象，那样只会让你的代码库变得庞大，杂乱无章。
+我配置了一个`set`路由，如何在会话里面存储一个`user`的值，存储值直接使用`Values`字段赋值，其实就是一个`map[string]interface{}`变体结构，注意这里的`Values`不是并行安全的，其实我在开发`gws`就考虑到了这个问题，并且想设计并发安全的`api`，但是考虑到`api`太多了也不好，写`Go`要保持大道至简，并不是像`Java`那样要通过`get`和`set`各种抽象，那样只会让你的代码库变得庞大，杂乱无章。
 
 所以在文档我明确说明了如果是并发操作`Values`并且自定义加锁！！！示例代码也会在后面添加：
 ```go
@@ -177,8 +177,8 @@ http.HandleFunc("/del", func(writer http.ResponseWriter, request *http.Request) 
 上面都是基本的增删改查操作，如果你作为一名`API`调用工程师或者是`API`操作员，那你看到这估计就差不多了，可以完成你日常的开发需求了，你也不需要去了解内部实现，如果要了解内部实现，我后面有空会去讲内部实现。
 
 
-## 并且安全
-由于我在设计`API`的时候，没有打算去写一个`get、set、del`，然后在里面提供一个内部锁去保证并且安全，所有调用者必须在有数据竞争的情况下自行加锁，或者你`go`写的溜，你可以自定义去包装并且安全的，下面这段代码我演示了如何并发安全的操作：
+## 并行安全
+由于我在设计`API`的时候，没有打算去写一个`get、set、del`，然后在里面提供一个内部锁去保证并行安全，所有调用者必须在有数据竞争的情况下自行加锁，或者你`go`写的溜，你可以自定义去包装并行安全的，下面这段代码我演示了如何并行安全的操作：
 ```go
 http.HandleFunc("/race", func(writer http.ResponseWriter, request *http.Request) {
 	session, _ := gws.GetSession(writer, request)
