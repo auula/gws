@@ -134,7 +134,7 @@ func main() {
 		session.Values = nil
 		// sync session modify
 		session.Sync()
-		fmt.Fprintf(rw, "clean session data.")
+		fmt.Fprintf(rw, "clean session data successful.")
 	})
 
 	_ = http.ListenAndServe(":8080", nil)
