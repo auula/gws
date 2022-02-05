@@ -92,7 +92,7 @@ func main() {
 
 }
 ```
-The above example code, showing how to customise a storage implementation, can be found at:[example/store_example.go](./example/store_example.go)
+The above example code, showing how to customise a storage implementation, can be found at: [example/store_example.go](./example/store_example.go)
 
 ---
 If you are using a single machine, or a small `Web Service` application, you can use the default local `in-memory` storage, where the session storage is stored in the local server `memory`, the downside of this is that the session data cannot be recovered when the application is restarted.
@@ -129,7 +129,7 @@ type UserInfo struct {
 }
 ```
 
-I configured a set route, how to store a user value inside the session, store the value directly using the `Values` field assignment, in fact it is a `map[string]interface{}` variant structure, note that the Values here is not parallel safe, in fact I considered this in the development of gws and wanted to design concurrency safe In fact, I had this in mind when developing gws and wanted to design concurrency-safe api's, but considered that too many api's would not be good, and that writing `Go` should be kept simple, not like `Java` where you have to abstract through get and set, which would just make your code base huge and cluttered.
+I configured a  `/set` route, how to store a user value inside the session, store the value directly using the `Values` field assignment, in fact it is a `map[string]interface{}` variant structure, note that the Values here is not parallel safe, in fact I considered this in the development of gws and wanted to design concurrency safe In fact, I had this in mind when developing gws and wanted to design concurrency-safe api's, but considered that too many api's would not be good, and that writing `Go` should be kept simple, not like `Java` where you have to abstract through `get` and `set`, which would just make your code base huge and cluttered.
 
 So in the documentation I make it clear that if you are concurrently manipulating Values and custom locking! Example code will also be added later.
 
