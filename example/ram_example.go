@@ -128,5 +128,14 @@ func main() {
 		fmt.Fprintln(writer, session.Values["count"].(int))
 	})
 
+	http.HandleFunc("/clean", func(rw http.ResponseWriter, request *http.Request) {
+		session, _ := gws.GetSession(rw, request)
+		// clean session data
+		session.Values = nil
+		// sync session modify
+		session.Sync()
+		fmt.Fprintf(rw, "clean session data.")
+	})
+
 	_ = http.ListenAndServe(":8080", nil)
 }
