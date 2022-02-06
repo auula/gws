@@ -266,9 +266,5 @@ http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Reque
 - [./example/ram_example.go](./example/ram_example.go)
 - [./example/redis_example.go](./example/redis_example.go)
 
-PS: 如果你是微信公众号看到这篇文章，那估计你不能正常跳转，因为腾讯的平台就这个样子，如果对你有帮助你可以按一个`star`再走。
-- [https://github.com/auula/gws](https://github.com/auula/gws)
+如果你发现了什么`bug`欢迎`pr`或者`issues`~如果对你有帮助你可以按一个`star`再走呗，[https://github.com/auula/gws](https://github.com/auula/gws)
 
-如果你发现了什么`bug`欢迎`pr`或者`issues`，我对代码质量要求比较高，`gws`代码是通过机器进行`code review`的，目前代码测试覆盖率和文档正在完善中。
-
-![](https://tva1.sinaimg.cn/large/008i3skNgy1gz0qljglhpj31bz0u0wh2.jpg)
