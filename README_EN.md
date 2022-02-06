@@ -11,6 +11,9 @@
 [![DeepSource](https://deepsource.io/gh/auula/gws.svg/?label=active+issues&show_trend=true)](https://deepsource.io/gh/auula/gws/?ref=repository-badge)
 [![DeepSource](https://deepsource.io/gh/auula/gws.svg/?label=resolved+issues&show_trend=true)](https://deepsource.io/gh/auula/gws/?ref=repository-badge)
 
+
+---
+[简体中文](./README.md) | [English](./README_EN.md)
 ---
 
 ### Introduction
