@@ -179,3 +179,93 @@ http.HandleFunc("/del", func(writer http.ResponseWriter, request *http.Request) 
 ```
 
 Now that you know the basics of how to use it, you can easily manage your session data. You can view the sample code to do your job better, or view the source code.
+
+## Coroutine Safe
+
+As I designed the API without the intention of writing a `get、 set、 del` and then providing an internal lock in it to ensure and secure that all callers must lock themselves in case of data competition, or you go write the slip that you can customize to be wrapped and secure, the following code I demonstrate how to concurrently secure the operation.
+
+
+```go
+http.HandleFunc("/race", func(writer http.ResponseWriter, request *http.Request) {
+	session, _ := gws.GetSession(writer, request)
+
+	session.Values["count"] = 0
+	var (
+		wg  sync.WaitGroup
+		// coroutine safe lock
+		mux sync.Mutex
+	)
+	size := 10000
+	wg.Add(size)
+	for i := 0; i < size/2; i++ {
+		go func() {
+			time.Sleep(5 * time.Second)
+			mux.Lock()
+			if v, ok := session.Values["count"].(int); ok {
+				session.Values["count"] = v + 1
+			}
+			wg.Done()
+			mux.Unlock()
+		}()
+		go func() {
+			time.Sleep(5 * time.Second)
+			mux.Lock()
+			if v, ok := session.Values["count"].(int); ok {
+				session.Values["count"] = v + 1
+			}
+			wg.Done()
+			mux.Unlock()
+		}()
+	}
+	wg.Wait()
+	fmt.Fprintln(writer, session.Values["count"].(int))
+})
+```
+
+In a data contention state, other callers can fetch the value normally, but you have to ensure that you customize the lock control range, what type of lock you want to use, such as `read/write lock` or mutually exclusive lock, this depends on your understanding of go, or you are very strong, you can solve the data contention through the channel, when I design the API, I am keeping as little as possible to affect or limit the caller some operation experience, the above and the following examples are in the case of race in the request, the result will not block and can still fetch the value of the demonstration:
+
+```go
+http.HandleFunc("/result", func(writer http.ResponseWriter, request *http.Request) {
+	session, _ := gws.GetSession(writer, request)
+	fmt.Fprintln(writer, session.Values["count"].(int))
+})
+```
+
+## Session Hijacking
+
+Session fixed attack, this process, normal users in the browser to access the site we write, but this time there is a `hack` through `arp` spoofing, the router traffic hijacked to his computer, and then the hacker through some special software to grab your network request traffic information, in this process if you `sessionid` if stored in the cookie, it is likely to be If you log in to the site at this time, this is the hacker to get your login credentials, and then in the login to replay that is to use your `sessionid`, so as to achieve the purpose of access to your account-related data.
+
+
+To do this I added a `gws.Migrate(write http.ResponseWriter, old *Session) (*Session, error) `built-in function to gws, using the following example：
+
+
+```go
+http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
+	var (
+		session *gws.Session
+		err     error
+	)
+
+	session, _ = gws.GetSession(writer, request)
+	log.Printf("old session %p \n", session)
+
+	// Migrate session data and refresh client sessions, discarding old sessions
+	if session, err = gws.Migrate(writer, session); err != nil {
+		fmt.Fprintln(writer, err.Error())
+		return
+	}
+
+	log.Printf("old session %p \n", session)
+	jsonstr, _ := json.Marshal(session.Values["user"])
+	fmt.Fprintln(writer, string(jsonstr))
+})
+```
+
+`Migrate` will help you migrate session data, you can also use it with the https protocol, but of course the API I had in mind when I designed `gws`, all of it is provided.
+
+#### Table of contents for the above example code：
+
+- [./example/store_example.go](./example/store_example.go)
+- [./example/ram_example.go](./example/ram_example.go)
+- [./example/redis_example.go](./example/redis_example.go)
+
