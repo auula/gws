@@ -184,6 +184,12 @@ func (s *Session) Expired() bool {
 	return time.Duration(s.ExpireTime.UnixNano()) <= time.Duration(time.Now().UnixNano())
 }
 
+// Invalidate remove the session
+func (s *Session) Invalidate() {
+	debug.trace(s)
+	globalStore.Remove(s)
+}
+
 // Open Initialize storage with custom configuration
 func Open(opt Configure) {
 	debug.trace(opt)
