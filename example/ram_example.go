@@ -20,7 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//+build ignore
+//go:build ignore
+// +build ignore
 
 package main
 
@@ -135,6 +136,12 @@ func main() {
 		// sync session modify
 		session.Sync()
 		fmt.Fprintf(rw, "clean session data successful.")
+	})
+
+	http.HandleFunc("/invalidate", func(rw http.ResponseWriter, request *http.Request) {
+		session, _ := gws.GetSession(rw, request)
+		gws.Invalidate(session)
+		fmt.Fprintf(rw, "set session invalidate successful.")
 	})
 
 	_ = http.ListenAndServe(":8080", nil)

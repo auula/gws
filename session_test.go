@@ -221,3 +221,28 @@ func TestSessionConcurrent(t *testing.T) {
 	wg.Wait()
 	t.Log(session.Values["count"].(int))
 }
+
+func TestSessionInvalidate(t *testing.T) {
+	globalStore = NewRAM()
+
+	nowTime := time.Now()
+	uuid := uuid73()
+
+	session := &Session{
+		session{
+			id:         uuid,
+			Values:     make(Values),
+			CreateTime: nowTime,
+			ExpireTime: nowTime.Add(lifeTime),
+		},
+	}
+	// write session to storage
+	globalStore.Write(session)
+
+	t.Log(globalStore.(*RamStore).store)
+
+	// invalidate remove session to storage
+	Invalidate(session)
+
+	t.Log(globalStore.(*RamStore).store)
+}
