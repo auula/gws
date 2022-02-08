@@ -187,13 +187,7 @@ func (s *Session) Expired() bool {
 // Invalidate remove the session
 func Invalidate(s *Session) error {
 	debug.trace(s)
-
-	if err := globalStore.Remove(s); err != nil {
-		return err
-	}
-
-	s = nil
-	return nil
+	return globalStore.Remove(s)
 }
 
 // Open Initialize storage with custom configuration
