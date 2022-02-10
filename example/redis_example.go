@@ -75,6 +75,16 @@ func main() {
 		fmt.Fprintln(writer, string(jsonstr))
 	})
 
+	http.HandleFunc("/clean", func(rw http.ResponseWriter, request *http.Request) {
+		session, _ := gws.GetSession(rw, request)
+		// clean session data
+		session.Values = make(gws.Values)
+		// gws.Malloc(&session.Values)
+		// sync session modify
+		session.Sync()
+		fmt.Fprintf(rw, "clean session data successful.")
+	})
+
 	http.HandleFunc("/migrate", func(writer http.ResponseWriter, request *http.Request) {
 		var (
 			session *gws.Session

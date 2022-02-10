@@ -132,7 +132,7 @@ func main() {
 	http.HandleFunc("/clean", func(rw http.ResponseWriter, request *http.Request) {
 		session, _ := gws.GetSession(rw, request)
 		// clean session data
-		session.Values = nil
+		gws.Malloc(&session.Values)
 		// sync session modify
 		session.Sync()
 		fmt.Fprintf(rw, "clean session data successful.")

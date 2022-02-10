@@ -190,6 +190,11 @@ func Invalidate(s *Session) error {
 	return globalStore.Remove(s)
 }
 
+// Malloc reallocation of memory
+func Malloc(v *Values) {
+	*v = make(Values)
+}
+
 // Open Initialize storage with custom configuration
 func Open(opt Configure) {
 	debug.trace(opt)
