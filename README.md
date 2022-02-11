@@ -181,7 +181,7 @@ http.HandleFunc("/del", func(writer http.ResponseWriter, request *http.Request) 
 })
 ```
 
-如果要清理正规`session`的数据，可以使用`gws.Malloc(v *gws.Values)`函数：
+如果要清理这个`session`的`Values`数据，可以使用`gws.Malloc(v *gws.Values)`函数：
 
 ```go
 http.HandleFunc("/clean", func(rw http.ResponseWriter, request *http.Request) {
