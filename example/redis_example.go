@@ -79,7 +79,7 @@ func main() {
 		session, _ := gws.GetSession(rw, request)
 		// clean session data
 		session.Values = make(gws.Values)
-		// gws.Malloc(&session.Values)
+		//gws.Malloc(&session.Values)
 		// sync session modify
 		session.Sync()
 		fmt.Fprintf(rw, "clean session data successful.")

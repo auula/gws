@@ -180,6 +180,29 @@ http.HandleFunc("/del", func(writer http.ResponseWriter, request *http.Request) 
 	fmt.Fprintln(writer, "successful")
 })
 ```
+
+如果要清理正规`session`的数据，可以使用`gws.Malloc(v *gws.Values)`函数：
+
+```go
+http.HandleFunc("/clean", func(rw http.ResponseWriter, request *http.Request) {
+	session, _ := gws.GetSession(rw, request)
+	// clean session data
+	gws.Malloc(&session.Values)
+	// sync session modify
+	session.Sync()
+	fmt.Fprintf(rw, "clean session data successful.")
+})
+```
+
+如果废弃掉这个`session`则调用`gws.Invalidate(s *Session) error`函数：
+
+```go
+http.HandleFunc("/invalidate", func(rw http.ResponseWriter, request *http.Request) {
+	session, _ := gws.GetSession(rw, request)
+	gws.Invalidate(session)
+	fmt.Fprintf(rw, "set session invalidate successful.")
+})
+```
 上面都是基本的增删改查操作，如果你作为一名`API`调用工程师或者是`API`操作员，那你看到这估计就差不多了，可以完成你日常的开发需求了，你也不需要去了解内部实现，如果要了解内部实现，我后面有空会去讲内部实现。
 
 
