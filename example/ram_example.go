@@ -36,8 +36,6 @@ import (
 )
 
 func init() {
-	gws.Debug(true)
-
 	// var opt gws.RAMOption
 	// opt.Domain = "www.ibyte.me"
 	// gws.Open(opt)

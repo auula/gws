@@ -39,7 +39,7 @@ const (
 	rds              // Session storage rds type
 	def
 
-	prefix   = "gws_id"                          // Default perfix
+	prefix   = "gws_id"                          // Default prefix
 	lifeTime = time.Duration(1800) * time.Second // Default session lifetime
 )
 
@@ -155,7 +155,7 @@ var (
 	}
 )
 
-// NewOptions: Initialize default config.
+// NewOptions Initialize default config.
 func NewOptions(opts ...func(*Options)) Options {
 	var opt Options
 	opt.option = defaultOption
@@ -185,7 +185,7 @@ type Configure interface {
 	Parse() (cfg *Config)
 }
 
-// config is session storage config parameter.
+// Config is session storage config parameter.
 type Config struct {
 	store `json:"store,omitempty"`
 	RDSOption

@@ -43,17 +43,23 @@ type Storage interface {
 	Remove(s *Session) (err error)
 }
 
+// timeout manager
+type tm map[string]*time.Timer
+
 // RamStore Local memory storage.
 type RamStore struct {
-	rw    *sync.RWMutex
-	store map[string]*Session
+	tm
+	rw           sync.RWMutex
+	store        map[string]*Session
+	garbageTruck chan string
 }
 
 // NewRAM return local memory storage.
 func NewRAM() *RamStore {
 	s := &RamStore{
+		tm:    make(map[string]*time.Timer, 1024),
 		store: make(map[string]*Session),
-		rw:    new(sync.RWMutex),
+		rw:    sync.RWMutex{},
 	}
 	go s.gc()
 	return s
@@ -78,6 +84,17 @@ func (ram *RamStore) Write(s *Session) (err error) {
 	ram.rw.Lock()
 	defer ram.rw.Unlock()
 	ram.store[s.id] = s
+
+	if ram.tm[s.id] == nil {
+		go func() {
+			time := time.NewTimer(time.Until(s.ExpireTime))
+			ram.tm[s.id] = time
+			<-time.C
+			ram.garbageTruck <- s.id
+			time.Stop()
+		}()
+	}
+
 	debug.trace(s)
 	return nil
 }
@@ -85,37 +102,36 @@ func (ram *RamStore) Write(s *Session) (err error) {
 func (ram *RamStore) Remove(s *Session) (err error) {
 	ram.rw.Lock()
 	defer ram.rw.Unlock()
+	delete(ram.tm, s.id)
 	delete(ram.store, s.id)
 	debug.trace(s)
 	return nil
 }
 
-// gc is ram garbage collection.
+// gc is ram store garbage collection.
 func (ram *RamStore) gc() {
 	for {
-		// lifetime minute garbage collection.
-		time.Sleep(lifeTime)
-		debug.trace("gc running...")
-		for _, session := range ram.store {
-			if session.Expired() {
-				ram.rw.Lock()
-				delete(ram.store, session.id)
-				ram.rw.Unlock()
-			}
+		select {
+		case sid := <-ram.garbageTruck:
+			ram.rw.Lock()
+			delete(ram.store, sid)
+			ram.rw.Unlock()
+		default:
+			debug.trace("gc running...")
 		}
 	}
 }
 
 // RdsStore remote redis server storage.
 type RdsStore struct {
-	rw    *sync.RWMutex
+	rw    sync.RWMutex
 	store *redis.Client
 }
 
 // NewRds return redis server storage.
 func NewRds() *RdsStore {
 	return &RdsStore{
-		rw: new(sync.RWMutex),
+		rw: sync.RWMutex{},
 		store: redis.NewClient(&redis.Options{
 			Addr:     globalConfig.Address,
 			Password: globalConfig.Password,
