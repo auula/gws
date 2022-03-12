@@ -57,9 +57,10 @@ type RamStore struct {
 // NewRAM return local memory storage.
 func NewRAM() *RamStore {
 	s := &RamStore{
-		tm:    make(map[string]*time.Timer, 1024),
-		store: make(map[string]*Session),
-		rw:    sync.RWMutex{},
+		rw:           sync.RWMutex{},
+		store:        make(map[string]*Session),
+		tm:           make(map[string]*time.Timer, 1024),
+		garbageTruck: make(chan string, 1024),
 	}
 	go s.gc()
 	return s
@@ -87,11 +88,10 @@ func (ram *RamStore) Write(s *Session) (err error) {
 
 	if ram.tm[s.id] == nil {
 		go func() {
-			time := time.NewTimer(time.Until(s.ExpireTime))
-			ram.tm[s.id] = time
-			<-time.C
+			ram.tm[s.id] = time.NewTimer(time.Until(s.ExpireTime))
+			<-ram.tm[s.id].C
 			ram.garbageTruck <- s.id
-			time.Stop()
+			ram.tm[s.id].Stop()
 		}()
 	}
 

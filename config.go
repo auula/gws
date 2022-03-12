@@ -86,9 +86,9 @@ var (
 	}
 
 	// WithPoolSize set redis connection  pool size
-	WithPoolSize = func(poolsize uint8) func(*RDSOption) {
+	WithPoolSize = func(poolSize uint8) func(*RDSOption) {
 		return func(r *RDSOption) {
-			r.PoolSize = poolsize
+			r.PoolSize = poolSize
 		}
 	}
 
@@ -109,12 +109,12 @@ var (
 
 // option type is default config parameter option.
 type option struct {
-	LifeTime   time.Duration `json:"life_time" verify:"true" msg:"session lifetime required"`
-	CookieName string        `json:"cookie_name" verify:"true" msg:"cookie name required"`
-	HttpOnly   bool          `json:"http_only" verify:"true" msg:"http only required"`
-	Path       string        `json:"path" verify:"true" msg:"domain path required"`
-	Secure     bool          `json:"secure" verify:"true" msg:"secure required"`
-	Domain     string        `json:"domain" verify:"true" msg:"domain required"`
+	LifeTime   time.Duration `json:"life_time"`
+	CookieName string        `json:"cookie_name"`
+	HttpOnly   bool          `json:"http_only"`
+	Path       string        `json:"path"`
+	Secure     bool          `json:"secure"`
+	Domain     string        `json:"domain"`
 }
 
 // Options type is default config parameter option.
@@ -173,11 +173,11 @@ type RAMOption struct {
 // RDSOption is Redis storage config parameter option.
 type RDSOption struct {
 	option
-	Index    uint8  `json:"db_index" verify:"true" msg:"redis database number required"`
-	Prefix   string `json:"prefix" verify:"true" msg:"redis prefix required"`
-	Address  string `json:"address" verify:"true" msg:"redis server ip required"`
-	Password string `json:"password" verify:"true" msg:"redis server password required"`
-	PoolSize uint8  `json:"pool_size" verify:"true" msg:"redis connect pool size required"`
+	Index    uint8  `json:"db_index" `
+	Prefix   string `json:"prefix" `
+	Address  string `json:"address" `
+	Password string `json:"password" `
+	PoolSize uint8  `json:"pool_size" `
 }
 
 // Configure is session storage config parameter parser.
@@ -188,33 +188,33 @@ type Configure interface {
 // Config is session storage config parameter.
 type Config struct {
 	store `json:"store,omitempty"`
-	RDSOption
+	*RDSOption
 }
 
-func (opt Options) Parse() (cfg *Config) {
+func (opt *Options) Parse() (cfg *Config) {
 	cfg = new(Config)
 	cfg.store = def
 	cfg.RDSOption.option = opt.option
 	return verifyCfg(cfg)
 }
 
-func (opt RAMOption) Parse() (cfg *Config) {
+func (opt *RAMOption) Parse() (cfg *Config) {
 	cfg = new(Config)
 	cfg.store = ram
 	cfg.RDSOption.option = opt.option
 	return verifyCfg(cfg)
 }
 
-func (opt RDSOption) Parse() (cfg *Config) {
+func (opt *RDSOption) Parse() (cfg *Config) {
 	cfg = new(Config)
 	cfg.store = rds
 	cfg.RDSOption = opt
 	return verifyCfg(cfg)
 }
 
-// 此处验证方法比较low，后面改成反射写
+// Check the data
 func verifyCfg(cfg *Config) *Config {
-	// 通用校验
+	// General check
 	if cfg.CookieName == "" {
 		panic("cookie name is empty.")
 	}
@@ -245,7 +245,7 @@ func verifyCfg(cfg *Config) *Config {
 		panic("remote server login passwd is empty.")
 	}
 
-	// 针对特定存储校验
+	// Verification for specific storage
 	if net.ParseIP(strings.Split(cfg.Address, ":")[0]) == nil {
 		panic("remote ip address illegal.")
 	}

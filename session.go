@@ -42,10 +42,7 @@ var (
 	// Session concurrent safe mutex
 	migrateMux sync.Mutex
 
-	ErrKeyNoData          = errors.New("key no data")
 	ErrSessionNoData      = errors.New("session no data")
-	ErrIsEmpty            = errors.New("key or session id is empty")
-	ErrAlreadyExpired     = errors.New("session already expired")
 	ErrRemoveSessionFail  = errors.New("remove session fail")
 	ErrMigrateSessionFail = errors.New("migrate session fail")
 )
@@ -198,9 +195,7 @@ func Malloc(v *Values) {
 // Open Initialize storage with custom configuration
 func Open(opt Configure) {
 	debug.trace(opt)
-
 	globalConfig = opt.Parse()
-
 	switch globalConfig.store {
 	case ram:
 		globalStore = NewRAM()
