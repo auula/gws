@@ -201,6 +201,7 @@ func (opt *Options) Parse() (cfg *Config) {
 func (opt *RAMOption) Parse() (cfg *Config) {
 	cfg = new(Config)
 	cfg.store = ram
+	cfg.RDSOption = new(RDSOption)
 	cfg.RDSOption.option = opt.option
 	return verifyCfg(cfg)
 }
