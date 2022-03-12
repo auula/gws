@@ -9,8 +9,7 @@
 [![License](https://img.shields.io/badge/license-MIT-db5149.svg)](https://github.com/auula/gws/blob/master/LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/auula/gws.svg)](https://pkg.go.dev/github.com/auula/gws)
 [![codecov](https://codecov.io/gh/auula/gws/branch/dev/graph/badge.svg?token=btbed5BUUZ)](https://codecov.io/gh/auula/gws)
-[![DeepSource](https://deepsource.io/gh/auula/gws.svg/?label=active+issues&show_trend=true)](https://deepsource.io/gh/auula/gws/?ref=repository-badge)
-[![DeepSource](https://deepsource.io/gh/auula/gws.svg/?label=resolved+issues&show_trend=true)](https://deepsource.io/gh/auula/gws/?ref=repository-badge)
+[![DeepSource](https://deepsource.io/gh/auula/gws.svg/?label=active+issues&token=c0sepC4oiYxaeLOxgJFLfSWP)](https://deepsource.io/gh/auula/gws/?ref=repository-badge)
 
 ---
 
