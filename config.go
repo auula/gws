@@ -194,6 +194,7 @@ type Config struct {
 func (opt *Options) Parse() (cfg *Config) {
 	cfg = new(Config)
 	cfg.store = def
+	cfg.RDSOption = new(RDSOption)
 	cfg.RDSOption.option = opt.option
 	return verifyCfg(cfg)
 }
